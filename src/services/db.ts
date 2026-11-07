@@ -637,6 +637,20 @@ export const FarmDB = {
     }
   },
 
+  async deleteCrop(id: string): Promise<void> {
+    const crops = await this.getCrops();
+    setLocal('crops', crops.filter(c => c.id !== id));
+
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      try {
+        await supabase.from('crops').delete().eq('id', id);
+      } catch (e) {
+        console.warn('Supabase deleteCrop failed', e);
+      }
+    }
+  },
+
   // 4. Workers, Attendance & Wages
   async getWorkers(): Promise<Worker[]> {
     const workers = getLocal<Worker[]>('workers', INITIAL_WORKERS);
@@ -688,6 +702,16 @@ export const FarmDB = {
     setLocal('workers', updated);
   },
 
+  async deleteWorker(id: string): Promise<void> {
+    const workers = getLocal<Worker[]>('workers', INITIAL_WORKERS);
+    setLocal('workers', workers.filter(w => w.id !== id));
+    // Also clean up attendance and advances
+    const attendance = getLocal<WorkerAttendance[]>('attendance', INITIAL_ATTENDANCE);
+    setLocal('attendance', attendance.filter(a => a.worker_id !== id));
+    const advances = getLocal<WorkerAdvance[]>('advances', INITIAL_ADVANCES);
+    setLocal('advances', advances.filter(a => a.worker_id !== id));
+  },
+
   async getAttendance(date?: string): Promise<WorkerAttendance[]> {
     const all = getLocal<WorkerAttendance[]>('attendance', INITIAL_ATTENDANCE);
     if (date) {
@@ -726,6 +750,11 @@ export const FarmDB = {
     };
     setLocal('advances', [newAdv, ...all]);
     return newAdv;
+  },
+
+  async deleteAdvance(id: string): Promise<void> {
+    const all = await this.getAdvances();
+    setLocal('advances', all.filter(a => a.id !== id));
   },
 
   async getPayouts(): Promise<WorkerPayout[]> {
@@ -796,6 +825,11 @@ export const FarmDB = {
     return newSchedule;
   },
 
+  async deleteCanalSchedule(id: string): Promise<void> {
+    const all = await this.getCanalSchedules();
+    setLocal('canal_schedules', all.filter(c => c.id !== id));
+  },
+
   async getIrrigationLogs(): Promise<IrrigationLog[]> {
     return getLocal<IrrigationLog[]>('irrigation_logs', INITIAL_IRRIGATION_LOGS);
   },
@@ -824,6 +858,11 @@ export const FarmDB = {
     return newLog;
   },
 
+  async deleteIrrigationLog(id: string): Promise<void> {
+    const all = await this.getIrrigationLogs();
+    setLocal('irrigation_logs', all.filter(l => l.id !== id));
+  },
+
   // 7. Finance Management
   async getFinances(): Promise<FinanceItem[]> {
     return getLocal<FinanceItem[]>('finances', INITIAL_FINANCES);
@@ -837,6 +876,11 @@ export const FarmDB = {
     };
     setLocal('finances', [newItem, ...all]);
     return newItem;
+  },
+
+  async updateFinanceItem(id: string, updates: Partial<FinanceItem>): Promise<void> {
+    const all = await this.getFinances();
+    setLocal('finances', all.map(f => (f.id === id ? { ...f, ...updates } : f)));
   },
 
   async deleteFinanceItem(id: string): Promise<void> {
@@ -864,6 +908,11 @@ export const FarmDB = {
     setLocal('machinery', all.map(m => (m.id === id ? { ...m, ...updates } : m)));
   },
 
+  async deleteMachinery(id: string): Promise<void> {
+    const all = await this.getMachinery();
+    setLocal('machinery', all.filter(m => m.id !== id));
+  },
+
   // 9. Crop Health
   async getCropHealthRecords(): Promise<CropHealthRecord[]> {
     return getLocal<CropHealthRecord[]>('crop_health', INITIAL_CROP_HEALTH);
@@ -877,6 +926,16 @@ export const FarmDB = {
     };
     setLocal('crop_health', [newRecord, ...all]);
     return newRecord;
+  },
+
+  async updateCropHealthRecord(id: string, updates: Partial<CropHealthRecord>): Promise<void> {
+    const all = await this.getCropHealthRecords();
+    setLocal('crop_health', all.map(r => (r.id === id ? { ...r, ...updates } : r)));
+  },
+
+  async deleteCropHealthRecord(id: string): Promise<void> {
+    const all = await this.getCropHealthRecords();
+    setLocal('crop_health', all.filter(r => r.id !== id));
   },
 
   // 10. Harvest & Sales
@@ -916,5 +975,38 @@ export const FarmDB = {
   async updateHarvestSale(id: string, updates: Partial<HarvestSale>): Promise<void> {
     const all = await this.getHarvestSales();
     setLocal('harvest_sales', all.map(s => (s.id === id ? { ...s, ...updates } : s)));
+  },
+
+  async deleteHarvestSale(id: string): Promise<void> {
+    const all = await this.getHarvestSales();
+    setLocal('harvest_sales', all.filter(s => s.id !== id));
+  },
+
+  // 11. Global Reset & Clear Data
+  clearAllFarmData(): void {
+    const collections = [
+      'plots', 'crops', 'workers', 'attendance', 'advances', 'payouts',
+      'tasks', 'canal_schedules', 'irrigation_logs', 'finances', 'machinery',
+      'crop_health', 'harvest_sales'
+    ];
+    collections.forEach(key => {
+      setLocal(key, []);
+    });
+  },
+
+  resetAllDataToDefaults(): void {
+    setLocal('plots', INITIAL_PLOTS);
+    setLocal('crops', INITIAL_CROPS);
+    setLocal('workers', INITIAL_WORKERS);
+    setLocal('attendance', INITIAL_ATTENDANCE);
+    setLocal('advances', INITIAL_ADVANCES);
+    setLocal('payouts', []);
+    setLocal('tasks', INITIAL_TASKS);
+    setLocal('canal_schedules', INITIAL_CANAL_SCHEDULES);
+    setLocal('irrigation_logs', INITIAL_IRRIGATION_LOGS);
+    setLocal('finances', INITIAL_FINANCES);
+    setLocal('machinery', INITIAL_MACHINERY);
+    setLocal('crop_health', INITIAL_CROP_HEALTH);
+    setLocal('harvest_sales', INITIAL_HARVEST_SALES);
   },
 };

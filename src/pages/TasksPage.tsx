@@ -12,6 +12,7 @@ import {
   Filter,
   X,
   Trash2,
+  Edit2,
 } from 'lucide-react';
 import { FarmDB } from '../services/db';
 import { DailyTask, Worker, Plot, Priority, TaskStatus } from '../types';
@@ -24,6 +25,7 @@ export const TasksPage: React.FC = () => {
   const [plots, setPlots] = useState<Plot[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
+  const [editingTask, setEditingTask] = useState<DailyTask | null>(null);
   const [filterPriority, setFilterPriority] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<string>('all');
 
@@ -63,22 +65,53 @@ export const TasksPage: React.FC = () => {
     }
   };
 
-  const handleCreateTask = async (e: React.FormEvent) => {
+  const handleOpenAdd = () => {
+    setEditingTask(null);
+    setTitle('');
+    setDescription('');
+    if (plots.length > 0) setPlotId(plots[0].id);
+    setAssignedWorkerIds([]);
+    setPriority('medium');
+    setDueDate(new Date().toISOString().split('T')[0]);
+    setModalOpen(true);
+  };
+
+  const handleOpenEdit = (task: DailyTask) => {
+    setEditingTask(task);
+    setTitle(task.title);
+    setDescription(task.description || '');
+    setPlotId(task.plot_id || '');
+    setAssignedWorkerIds(task.assigned_worker_ids || []);
+    setPriority(task.priority);
+    setDueDate(task.due_date);
+    setModalOpen(true);
+  };
+
+  const handleSaveTask = async (e: React.FormEvent) => {
     e.preventDefault();
     const targetPlot = plots.find(p => p.id === plotId);
 
-    await FarmDB.addTask({
+    const payload = {
       title,
       description,
       plot_id: plotId,
       plot_name: targetPlot?.name || 'प्लॉट',
       assigned_worker_ids: assignedWorkerIds,
       priority,
-      status: 'pending',
       due_date: dueDate,
-    });
+    };
+
+    if (editingTask) {
+      await FarmDB.updateTask(editingTask.id, payload);
+    } else {
+      await FarmDB.addTask({
+        ...payload,
+        status: 'pending',
+      });
+    }
 
     setModalOpen(false);
+    setEditingTask(null);
     setTitle('');
     setDescription('');
     setAssignedWorkerIds([]);
@@ -125,7 +158,7 @@ export const TasksPage: React.FC = () => {
         </div>
 
         <button
-          onClick={() => setModalOpen(true)}
+          onClick={handleOpenAdd}
           className="inline-flex items-center justify-center space-x-1.5 px-4 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-2xl font-bold shadow-md shadow-emerald-700/20 transition-all text-xs sm:text-sm"
         >
           <Plus className="w-4 h-4" />
@@ -261,6 +294,15 @@ export const TasksPage: React.FC = () => {
                 )}
 
                 <button
+                  type="button"
+                  onClick={() => handleOpenEdit(task)}
+                  className="p-1.5 text-slate-400 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors"
+                  title={t('common.edit') || 'संपादित करा'}
+                >
+                  <Edit2 className="w-4 h-4" />
+                </button>
+
+                <button
                   onClick={() => handleDeleteTask(task.id)}
                   className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
                   title="काम हटवा"
@@ -278,13 +320,15 @@ export const TasksPage: React.FC = () => {
         <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
           <div className="bg-white rounded-3xl max-w-lg w-full shadow-2xl border border-slate-200 overflow-hidden">
             <div className="px-6 py-4 bg-emerald-800 text-white flex items-center justify-between">
-              <h3 className="font-bold text-base sm:text-lg">{t('tasks.add_task')}</h3>
+              <h3 className="font-bold text-base sm:text-lg">
+                {editingTask ? 'कामाचे तपशील संपादित करा (Edit Task)' : t('tasks.add_task')}
+              </h3>
               <button onClick={() => setModalOpen(false)} className="p-1 rounded-full hover:bg-white/10">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleCreateTask} className="p-5 space-y-4 text-xs sm:text-sm">
+            <form onSubmit={handleSaveTask} className="p-5 space-y-4 text-xs sm:text-sm">
               <div>
                 <label className="block font-bold text-slate-800 mb-1">कामाचे नाव / शीर्षक:</label>
                 <input
@@ -390,7 +434,7 @@ export const TasksPage: React.FC = () => {
                   type="submit"
                   className="px-5 py-2 bg-emerald-700 text-white rounded-xl font-bold shadow-md hover:bg-emerald-800"
                 >
-                  काम जतन करा
+                  {editingTask ? 'बदल जतन करा (Save Changes)' : 'काम जतन करा'}
                 </button>
               </div>
             </form>

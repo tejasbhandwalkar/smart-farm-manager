@@ -14,6 +14,8 @@ import {
   CheckCircle2,
   AlertCircle,
   FileSpreadsheet,
+  Edit2,
+  Trash2,
 } from 'lucide-react';
 import { FarmDB } from '../services/db';
 import { Crop, Plot, CropType, GrowthStage } from '../types';
@@ -26,10 +28,11 @@ export const CropsPage: React.FC = () => {
   const [selectedCropFilter, setSelectedCropFilter] = useState<'all' | CropType>('all');
   const [loading, setLoading] = useState(true);
   const [addModalOpen, setAddModalOpen] = useState(false);
+  const [editingCrop, setEditingCrop] = useState<Crop | null>(null);
   const [fertilizerModalOpen, setFertilizerModalOpen] = useState(false);
   const [activeCropForFertilizer, setActiveCropForFertilizer] = useState<Crop | null>(null);
 
-  // New crop form
+  // New / Edit crop form
   const [plotId, setPlotId] = useState('');
   const [cropType, setCropType] = useState<CropType>('sugarcane');
   const [cropName, setCropName] = useState('ऊस');
@@ -65,15 +68,52 @@ export const CropsPage: React.FC = () => {
     loadData();
   }, []);
 
+  const handleOpenAdd = () => {
+    setEditingCrop(null);
+    if (plots.length > 0) setPlotId(plots[0].id);
+    setCropType('sugarcane');
+    setCropName('ऊस');
+    setVariety('को-८६०३२');
+    setSowingDate('2026-06-15');
+    setExpectedHarvestDate('2027-08-15');
+    setGrowthStage('vegetative');
+    setTargetYield(650);
+    setUnit('Tons');
+    setNotes('');
+    setAddModalOpen(true);
+  };
+
+  const handleOpenEdit = (crop: Crop) => {
+    setEditingCrop(crop);
+    setPlotId(crop.plot_id);
+    setCropType(crop.crop_type);
+    setCropName(crop.crop_name);
+    setVariety(crop.variety);
+    setSowingDate(crop.sowing_date);
+    setExpectedHarvestDate(crop.expected_harvest_date);
+    setGrowthStage(crop.growth_stage);
+    setTargetYield(crop.target_yield);
+    setUnit(crop.unit);
+    setNotes(crop.notes || '');
+    setAddModalOpen(true);
+  };
+
+  const handleDeleteCrop = async (id: string) => {
+    if (window.confirm(t('common.confirm_delete') || 'तुम्हाला खात्री आहे का हे पीक हटवायचे?')) {
+      await FarmDB.deleteCrop(id);
+      await loadData();
+    }
+  };
+
   const filteredCrops = selectedCropFilter === 'all'
     ? crops
     : crops.filter(c => c.crop_type === selectedCropFilter);
 
-  const handleAddCrop = async (e: React.FormEvent) => {
+  const handleSaveCrop = async (e: React.FormEvent) => {
     e.preventDefault();
     const targetPlot = plots.find(p => p.id === plotId);
 
-    await FarmDB.addCrop({
+    const cropPayload = {
       plot_id: plotId,
       plot_name: targetPlot?.name || 'प्लॉट',
       crop_type: cropType,
@@ -85,9 +125,16 @@ export const CropsPage: React.FC = () => {
       target_yield: Number(targetYield),
       unit,
       notes,
-    });
+    };
+
+    if (editingCrop) {
+      await FarmDB.updateCrop(editingCrop.id, cropPayload);
+    } else {
+      await FarmDB.addCrop(cropPayload);
+    }
 
     setAddModalOpen(false);
+    setEditingCrop(null);
     await loadData();
   };
 
@@ -148,7 +195,7 @@ export const CropsPage: React.FC = () => {
         </div>
 
         <button
-          onClick={() => setAddModalOpen(true)}
+          onClick={handleOpenAdd}
           className="inline-flex items-center justify-center space-x-1.5 px-4 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-2xl font-bold shadow-md shadow-emerald-700/20 transition-all text-xs sm:text-sm"
         >
           <Plus className="w-4 h-4" />
@@ -236,9 +283,27 @@ export const CropsPage: React.FC = () => {
                     </p>
                   </div>
 
-                  <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full uppercase ${stageLabels[crop.growth_stage].badge}`}>
-                    {stageLabels[crop.growth_stage].label}
-                  </span>
+                  <div className="flex items-center space-x-1.5">
+                    <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full uppercase ${stageLabels[crop.growth_stage].badge}`}>
+                      {stageLabels[crop.growth_stage].label}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleOpenEdit(crop)}
+                      className="p-1.5 text-slate-500 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors"
+                      title={t('common.edit') || 'संपादित करा'}
+                    >
+                      <Edit2 className="w-4 h-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteCrop(crop.id)}
+                      className="p-1.5 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                      title={t('common.delete') || 'हटवा'}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
 
                 {/* Sowing & Harvesting Dates Timeline */}
@@ -333,13 +398,15 @@ export const CropsPage: React.FC = () => {
         <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
           <div className="bg-white rounded-3xl max-w-lg w-full shadow-2xl border border-slate-200 overflow-hidden">
             <div className="px-6 py-4 bg-emerald-800 text-white flex items-center justify-between">
-              <h3 className="font-bold text-base sm:text-lg">{t('crops.add_crop')}</h3>
+              <h3 className="font-bold text-base sm:text-lg">
+                {editingCrop ? 'पीक माहिती संपादित करा (Edit Crop)' : t('crops.add_crop')}
+              </h3>
               <button onClick={() => setAddModalOpen(false)} className="p-1 rounded-full hover:bg-white/10">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleAddCrop} className="p-5 space-y-4 text-xs sm:text-sm">
+            <form onSubmit={handleSaveCrop} className="p-5 space-y-4 text-xs sm:text-sm">
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block font-bold text-slate-800 mb-1">
@@ -485,7 +552,7 @@ export const CropsPage: React.FC = () => {
                   type="submit"
                   className="px-5 py-2 bg-emerald-700 text-white rounded-xl font-bold shadow-md hover:bg-emerald-800"
                 >
-                  पीक जतन करा
+                  {editingCrop ? 'बदल जतन करा (Save Changes)' : 'पीक जतन करा'}
                 </button>
               </div>
             </form>

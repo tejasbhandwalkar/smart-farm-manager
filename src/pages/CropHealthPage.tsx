@@ -12,6 +12,8 @@ import {
   Calendar,
   X,
   Sparkles,
+  Edit2,
+  Trash2,
 } from 'lucide-react';
 import { FarmDB } from '../services/db';
 import { CropHealthRecord, Crop, Plot } from '../types';
@@ -24,6 +26,7 @@ export const CropHealthPage: React.FC = () => {
   const [plots, setPlots] = useState<Plot[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
+  const [editingRecord, setEditingRecord] = useState<CropHealthRecord | null>(null);
 
   // Form states
   const [plotId, setPlotId] = useState('');
@@ -52,7 +55,36 @@ export const CropHealthPage: React.FC = () => {
     loadData();
   }, []);
 
-  const handleCreateRecord = async (e: React.FormEvent) => {
+  const handleOpenAdd = () => {
+    setEditingRecord(null);
+    if (plots.length > 0) setPlotId(plots[0].id);
+    if (crops.length > 0) setCropId(crops[0].id);
+    setSymptoms('');
+    setSeverity('medium');
+    setDiagnosisGuidance('');
+    setImageUrl('');
+    setModalOpen(true);
+  };
+
+  const handleOpenEdit = (rec: CropHealthRecord) => {
+    setEditingRecord(rec);
+    setPlotId(rec.plot_id);
+    setCropId(rec.crop_id);
+    setSymptoms(rec.symptoms);
+    setSeverity(rec.severity);
+    setDiagnosisGuidance(rec.diagnosis_guidance || '');
+    setImageUrl(rec.image_url || '');
+    setModalOpen(true);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (window.confirm(t('common.confirm_delete') || 'तुम्हाला खात्री आहे का ही नोंद हटवायची?')) {
+      await FarmDB.deleteCropHealthRecord(id);
+      await loadData();
+    }
+  };
+
+  const handleSaveRecord = async (e: React.FormEvent) => {
     e.preventDefault();
     const targetPlot = plots.find(p => p.id === plotId);
     const targetCrop = crops.find(c => c.id === cropId);
@@ -69,7 +101,7 @@ export const CropHealthPage: React.FC = () => {
       }
     }
 
-    await FarmDB.addCropHealthRecord({
+    const payload = {
       plot_id: plotId,
       plot_name: targetPlot?.name || 'प्लॉट',
       crop_id: cropId,
@@ -78,11 +110,18 @@ export const CropHealthPage: React.FC = () => {
       diagnosis_guidance: guidance,
       severity,
       image_url: imageUrl || 'https://images.unsplash.com/photo-1592417817098-8f3d69106093?auto=format&fit=crop&w=400&q=80',
-      observation_date: new Date().toISOString().split('T')[0],
-      status: 'under_observation',
-    });
+      observation_date: editingRecord ? editingRecord.observation_date : new Date().toISOString().split('T')[0],
+      status: editingRecord ? editingRecord.status : 'under_observation' as const,
+    };
+
+    if (editingRecord) {
+      await FarmDB.updateCropHealthRecord(editingRecord.id, payload);
+    } else {
+      await FarmDB.addCropHealthRecord(payload);
+    }
 
     setModalOpen(false);
+    setEditingRecord(null);
     setSymptoms('');
     setDiagnosisGuidance('');
     await loadData();
@@ -111,7 +150,7 @@ export const CropHealthPage: React.FC = () => {
         </div>
 
         <button
-          onClick={() => setModalOpen(true)}
+          onClick={handleOpenAdd}
           className="inline-flex items-center justify-center space-x-1.5 px-4 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-2xl font-bold shadow-md shadow-emerald-700/20 transition-all text-xs sm:text-sm"
         >
           <Camera className="w-4 h-4" />
@@ -164,9 +203,27 @@ export const CropHealthPage: React.FC = () => {
                     </span>
                   </div>
 
-                  <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase ${severityBadges[rec.severity]?.badge}`}>
-                    {severityBadges[rec.severity]?.label || rec.severity}
-                  </span>
+                  <div className="flex items-center space-x-1">
+                    <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase ${severityBadges[rec.severity]?.badge}`}>
+                      {severityBadges[rec.severity]?.label || rec.severity}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleOpenEdit(rec)}
+                      className="p-1.5 text-slate-500 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors"
+                      title={t('common.edit') || 'संपादित करा'}
+                    >
+                      <Edit2 className="w-4 h-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(rec.id)}
+                      className="p-1.5 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                      title={t('common.delete') || 'हटवा'}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
 
                 {/* Symptoms text */}
@@ -207,13 +264,15 @@ export const CropHealthPage: React.FC = () => {
         <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
           <div className="bg-white rounded-3xl max-w-lg w-full shadow-2xl border border-slate-200 overflow-hidden">
             <div className="px-6 py-4 bg-emerald-800 text-white flex items-center justify-between">
-              <h3 className="font-bold text-base">पीक लक्षणे व फोटो नोंदणी</h3>
+              <h3 className="font-bold text-base">
+                {editingRecord ? 'पीक लक्षणे व सल्ला संपादित करा (Edit Record)' : 'पीक लक्षणे व फोटो नोंदणी'}
+              </h3>
               <button onClick={() => setModalOpen(false)} className="p-1 rounded-full hover:bg-white/10">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleCreateRecord} className="p-5 space-y-4 text-xs sm:text-sm">
+            <form onSubmit={handleSaveRecord} className="p-5 space-y-4 text-xs sm:text-sm">
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block font-bold text-slate-800 mb-1">प्लॉट निवडा:</label>
@@ -295,7 +354,7 @@ export const CropHealthPage: React.FC = () => {
                   type="submit"
                   className="px-5 py-2 bg-emerald-700 text-white rounded-xl font-bold shadow-md hover:bg-emerald-800"
                 >
-                  नोंद जतन करा
+                  {editingRecord ? 'बदल जतन करा (Save Changes)' : 'नोंद जतन करा'}
                 </button>
               </div>
             </form>

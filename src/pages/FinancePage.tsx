@@ -14,6 +14,7 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   Trash2,
+  Edit2,
   X,
 } from 'lucide-react';
 import {
@@ -40,6 +41,7 @@ export const FinancePage: React.FC = () => {
   const [plots, setPlots] = useState<Plot[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
+  const [editingFinance, setEditingFinance] = useState<FinanceItem | null>(null);
   const [filterType, setFilterType] = useState<'all' | 'income' | 'expense'>('all');
   const [filterCategory, setFilterCategory] = useState<string>('all');
 
@@ -78,11 +80,35 @@ export const FinancePage: React.FC = () => {
   const netProfit = totalIncome - totalExpense;
   const profitMargin = totalIncome > 0 ? ((netProfit / totalIncome) * 100).toFixed(1) : '0';
 
-  const handleAddTransaction = async (e: React.FormEvent) => {
+  const handleOpenAdd = () => {
+    setEditingFinance(null);
+    setType('expense');
+    setCategory('cat_fertilizer');
+    setAmount(2500);
+    setDate(new Date().toISOString().split('T')[0]);
+    setCropId('');
+    setPaymentMode('cash');
+    setNotes('');
+    setModalOpen(true);
+  };
+
+  const handleOpenEdit = (item: FinanceItem) => {
+    setEditingFinance(item);
+    setType(item.type);
+    setCategory(item.category);
+    setAmount(Number(item.amount) || 0);
+    setDate(item.date);
+    setCropId(item.crop_id || '');
+    setPaymentMode(item.payment_mode === 'bank_upi' ? 'bank_upi' : 'cash');
+    setNotes(item.notes || '');
+    setModalOpen(true);
+  };
+
+  const handleSaveTransaction = async (e: React.FormEvent) => {
     e.preventDefault();
     const linkedCrop = crops.find(c => c.id === cropId);
 
-    await FarmDB.addFinanceItem({
+    const payload = {
       type,
       category,
       amount: Number(amount),
@@ -91,9 +117,16 @@ export const FinancePage: React.FC = () => {
       crop_name: linkedCrop?.crop_name,
       payment_mode: paymentMode,
       notes,
-    });
+    };
+
+    if (editingFinance) {
+      await FarmDB.updateFinanceItem(editingFinance.id, payload);
+    } else {
+      await FarmDB.addFinanceItem(payload);
+    }
 
     setModalOpen(false);
+    setEditingFinance(null);
     setAmount(0);
     setNotes('');
     await loadData();
@@ -171,10 +204,7 @@ export const FinancePage: React.FC = () => {
           </button>
 
           <button
-            onClick={() => {
-              setType('expense');
-              setModalOpen(true);
-            }}
+            onClick={handleOpenAdd}
             className="inline-flex items-center space-x-1.5 px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold shadow-md shadow-emerald-700/20 transition-all"
           >
             <Plus className="w-4 h-4" />
@@ -341,18 +371,25 @@ export const FinancePage: React.FC = () => {
                   )}
                 </div>
 
-                <div className="flex items-center justify-between sm:justify-end space-x-3 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-200">
+                <div className="flex items-center justify-between sm:justify-end space-x-2 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-200">
                   <span
-                    className={`text-base font-black ${
+                    className={`text-base font-black mr-1 ${
                       isIncome ? 'text-emerald-700' : 'text-rose-700'
                     }`}
                   >
                     {isIncome ? '+' : '-'} ₹{Number(item.amount).toLocaleString('en-IN')}
                   </span>
                   <button
+                    onClick={() => handleOpenEdit(item)}
+                    className="p-1.5 text-slate-400 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors"
+                    title={t('common.edit') || 'संपादित करा'}
+                  >
+                    <Edit2 className="w-4 h-4" />
+                  </button>
+                  <button
                     onClick={() => handleDelete(item.id)}
-                    className="p-1 text-slate-400 hover:text-rose-600 rounded-lg transition-colors"
-                    title="हटवा"
+                    className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                    title={t('common.delete') || 'हटवा'}
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
@@ -368,13 +405,15 @@ export const FinancePage: React.FC = () => {
         <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
           <div className="bg-white rounded-3xl max-w-md w-full shadow-2xl border border-slate-200 overflow-hidden">
             <div className="px-6 py-4 bg-emerald-800 text-white flex items-center justify-between">
-              <h3 className="font-bold text-base">{t('finance.add_transaction')}</h3>
+              <h3 className="font-bold text-base">
+                {editingFinance ? 'हिशोब नोंद संपादित करा (Edit Transaction)' : t('finance.add_transaction')}
+              </h3>
               <button onClick={() => setModalOpen(false)} className="p-1 rounded-full hover:bg-white/10">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleAddTransaction} className="p-5 space-y-4 text-xs sm:text-sm">
+            <form onSubmit={handleSaveTransaction} className="p-5 space-y-4 text-xs sm:text-sm">
               <div className="flex rounded-xl bg-slate-100 p-1 text-xs font-bold">
                 <button
                   type="button"
@@ -503,7 +542,7 @@ export const FinancePage: React.FC = () => {
                   type="submit"
                   className="px-5 py-2 bg-emerald-700 text-white rounded-xl font-bold shadow-md hover:bg-emerald-800"
                 >
-                  जतन करा
+                  {editingFinance ? 'बदल जतन करा (Save Changes)' : 'जतन करा'}
                 </button>
               </div>
             </form>

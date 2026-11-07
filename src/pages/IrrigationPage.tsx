@@ -13,6 +13,7 @@ import {
   Bell,
   Waves,
   X,
+  Trash2,
 } from 'lucide-react';
 import { FarmDB } from '../services/db';
 import { IrrigationLog, CanalSchedule, Plot } from '../types';
@@ -76,6 +77,20 @@ export const IrrigationPage: React.FC = () => {
   useEffect(() => {
     loadData();
   }, []);
+
+  const handleDeleteLog = async (id: string) => {
+    if (window.confirm('ही पाणी पाळी नोंद हटवायची आहे का?')) {
+      await FarmDB.deleteIrrigationLog(id);
+      await loadData();
+    }
+  };
+
+  const handleDeleteCanalSchedule = async (id: string) => {
+    if (window.confirm('हे कालवा आवर्तन वेळापत्रक हटवायचे आहे का?')) {
+      await FarmDB.deleteCanalSchedule(id);
+      await loadData();
+    }
+  };
 
   const handleTogglePump = () => {
     const next = !isPumpRunning;
@@ -256,9 +271,19 @@ export const IrrigationPage: React.FC = () => {
               <div className="mt-4 p-3.5 bg-cyan-50/60 rounded-2xl border border-cyan-100 space-y-2 text-xs">
                 <div className="flex items-center justify-between">
                   <span className="text-cyan-950 font-bold">संभाव्य पाणी सुटण्याची तारीख:</span>
-                  <span className="font-black text-cyan-800 text-sm">
-                    {canalSchedules[0].expected_date}
-                  </span>
+                  <div className="flex items-center space-x-2">
+                    <span className="font-black text-cyan-800 text-sm">
+                      {canalSchedules[0].expected_date}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteCanalSchedule(canalSchedules[0].id)}
+                      className="p-1 text-slate-400 hover:text-rose-600 rounded-lg transition-colors"
+                      title={t('common.delete') || 'हटवा'}
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
                 <div className="flex items-center justify-between text-slate-600">
                   <span>अपेक्षित प्रवाह (Discharge):</span>
@@ -307,11 +332,21 @@ export const IrrigationPage: React.FC = () => {
                 </p>
               </div>
 
-              {log.notes && (
-                <span className="text-slate-600 italic bg-white px-2.5 py-1 rounded-lg border border-slate-200 text-[11px]">
-                  {log.notes}
-                </span>
-              )}
+              <div className="flex items-center space-x-2">
+                {log.notes && (
+                  <span className="text-slate-600 italic bg-white px-2.5 py-1 rounded-lg border border-slate-200 text-[11px]">
+                    {log.notes}
+                  </span>
+                )}
+                <button
+                  type="button"
+                  onClick={() => handleDeleteLog(log.id)}
+                  className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                  title={t('common.delete') || 'हटवा'}
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
             </div>
           ))}
         </div>

@@ -12,6 +12,8 @@ import {
   AlertCircle,
   X,
   CreditCard,
+  Edit2,
+  Trash2,
 } from 'lucide-react';
 import { FarmDB } from '../services/db';
 import { HarvestSale, Crop, Plot } from '../types';
@@ -24,6 +26,7 @@ export const HarvestSalesPage: React.FC = () => {
   const [plots, setPlots] = useState<Plot[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
+  const [editingSale, setEditingSale] = useState<HarvestSale | null>(null);
   const [settleModalOpen, setSettleModalOpen] = useState(false);
   const [selectedSaleForSettle, setSelectedSaleForSettle] = useState<HarvestSale | null>(null);
   const [settleAmount, setSettleAmount] = useState(0);
@@ -65,7 +68,42 @@ export const HarvestSalesPage: React.FC = () => {
   const calculatedTotal = Number(quantity) * Number(ratePerUnit);
   const calculatedPending = Math.max(0, calculatedTotal - Number(receivedAmount));
 
-  const handleCreateSale = async (e: React.FormEvent) => {
+  const handleOpenAdd = () => {
+    setEditingSale(null);
+    if (crops.length > 0) setCropId(crops[0].id);
+    if (plots.length > 0) setPlotId(plots[0].id);
+    setHarvestDate(new Date().toISOString().split('T')[0]);
+    setQuantity(50);
+    setUnit('Tons');
+    setRatePerUnit(3100);
+    setBuyerName('श्री छत्रपती सहकारी साखर कारखाना');
+    setBuyerPhone('02118-242201');
+    setReceivedAmount(100000);
+    setModalOpen(true);
+  };
+
+  const handleOpenEdit = (sale: HarvestSale) => {
+    setEditingSale(sale);
+    setCropId(sale.crop_id || '');
+    setPlotId(sale.plot_id || '');
+    setHarvestDate(sale.harvest_date);
+    setQuantity(sale.quantity);
+    setUnit(sale.unit);
+    setRatePerUnit(sale.rate_per_unit);
+    setBuyerName(sale.buyer_name);
+    setBuyerPhone(sale.buyer_phone || '');
+    setReceivedAmount(sale.received_amount);
+    setModalOpen(true);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (window.confirm(t('common.confirm_delete') || 'तुम्हाला खात्री आहे का ही विक्री नोंद हटवायची?')) {
+      await FarmDB.deleteHarvestSale(id);
+      await loadData();
+    }
+  };
+
+  const handleSaveSale = async (e: React.FormEvent) => {
     e.preventDefault();
     const targetCrop = crops.find(c => c.id === cropId);
     const targetPlot = plots.find(p => p.id === plotId);
@@ -74,7 +112,7 @@ export const HarvestSalesPage: React.FC = () => {
     const pending = Math.max(0, total - Number(receivedAmount));
     const status = pending === 0 ? 'paid' : Number(receivedAmount) > 0 ? 'partial' : 'unpaid';
 
-    await FarmDB.addHarvestSale({
+    const payload = {
       crop_id: cropId,
       crop_name: targetCrop?.crop_name || 'पीक',
       plot_id: plotId,
@@ -88,10 +126,17 @@ export const HarvestSalesPage: React.FC = () => {
       buyer_phone: buyerPhone,
       received_amount: Number(receivedAmount),
       pending_amount: pending,
-      payment_status: status,
-    });
+      payment_status: status as any,
+    };
+
+    if (editingSale) {
+      await FarmDB.updateHarvestSale(editingSale.id, payload);
+    } else {
+      await FarmDB.addHarvestSale(payload);
+    }
 
     setModalOpen(false);
+    setEditingSale(null);
     await loadData();
   };
 
@@ -152,7 +197,7 @@ export const HarvestSalesPage: React.FC = () => {
         </div>
 
         <button
-          onClick={() => setModalOpen(true)}
+          onClick={handleOpenAdd}
           className="inline-flex items-center justify-center space-x-1.5 px-4 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-2xl font-bold shadow-md shadow-emerald-700/20 transition-all text-xs sm:text-sm"
         >
           <Plus className="w-4 h-4" />
@@ -228,14 +273,32 @@ export const HarvestSalesPage: React.FC = () => {
                   )}
                 </div>
 
-                {sale.pending_amount > 0 && (
+                <div className="flex items-center space-x-2">
+                  {sale.pending_amount > 0 && (
+                    <button
+                      onClick={() => handleOpenSettle(sale)}
+                      className="px-3 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold transition-colors shadow-sm"
+                    >
+                      बाकी जमा करा
+                    </button>
+                  )}
                   <button
-                    onClick={() => handleOpenSettle(sale)}
-                    className="px-3 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold transition-colors shadow-sm"
+                    type="button"
+                    onClick={() => handleOpenEdit(sale)}
+                    className="p-2 text-slate-500 hover:text-emerald-700 hover:bg-emerald-50 rounded-xl transition-colors border border-slate-200"
+                    title={t('common.edit') || 'संपादित करा'}
                   >
-                    बाकी जमा करा
+                    <Edit2 className="w-4 h-4" />
                   </button>
-                )}
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(sale.id)}
+                    className="p-2 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors border border-slate-200"
+                    title={t('common.delete') || 'हटवा'}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
             </div>
           ))}
@@ -247,13 +310,15 @@ export const HarvestSalesPage: React.FC = () => {
         <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
           <div className="bg-white rounded-3xl max-w-lg w-full shadow-2xl border border-slate-200 overflow-hidden">
             <div className="px-6 py-4 bg-emerald-800 text-white flex items-center justify-between">
-              <h3 className="font-bold text-base">{t('harvest_sales.add_harvest')}</h3>
+              <h3 className="font-bold text-base">
+                {editingSale ? 'विक्री नोंद संपादित करा (Edit Harvest Sale)' : t('harvest_sales.add_harvest')}
+              </h3>
               <button onClick={() => setModalOpen(false)} className="p-1 rounded-full hover:bg-white/10">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleCreateSale} className="p-5 space-y-4 text-xs sm:text-sm">
+            <form onSubmit={handleSaveSale} className="p-5 space-y-4 text-xs sm:text-sm">
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block font-bold text-slate-800 mb-1">पीक निवडा:</label>
@@ -394,7 +459,7 @@ export const HarvestSalesPage: React.FC = () => {
                   type="submit"
                   className="px-5 py-2 bg-emerald-700 text-white rounded-xl font-bold shadow-md hover:bg-emerald-800"
                 >
-                  विक्री जतन करा
+                  {editingSale ? 'बदल जतन करा (Save Changes)' : 'विक्री जतन करा'}
                 </button>
               </div>
             </form>

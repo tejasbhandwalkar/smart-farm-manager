@@ -16,6 +16,8 @@ import {
   CreditCard,
   AlertCircle,
   ArrowRight,
+  Edit2,
+  Trash2,
 } from 'lucide-react';
 import { FarmDB } from '../services/db';
 import { exportWorkersToExcel } from '../services/export';
@@ -36,11 +38,12 @@ export const WorkersPage: React.FC = () => {
 
   // Modals
   const [addWorkerModal, setAddWorkerModal] = useState(false);
+  const [editingWorker, setEditingWorker] = useState<Worker | null>(null);
   const [advanceModal, setAdvanceModal] = useState(false);
   const [payoutModal, setPayoutModal] = useState(false);
   const [selectedWorkerForPay, setSelectedWorkerForPay] = useState<Worker | null>(null);
 
-  // Add Worker Form
+  // Add / Edit Worker Form
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [dailyWage, setDailyWage] = useState(400);
@@ -85,19 +88,62 @@ export const WorkersPage: React.FC = () => {
     setWorkers(updatedWorkers);
   };
 
-  const handleAddWorker = async (e: React.FormEvent) => {
-    e.preventDefault();
-    await FarmDB.addWorker({
-      name,
-      phone,
-      daily_wage: Number(dailyWage),
-      join_date: new Date().toISOString().split('T')[0],
-      is_active: true,
-      notes: workerNotes,
-    });
-    setAddWorkerModal(false);
+  const handleOpenAddWorker = () => {
+    setEditingWorker(null);
     setName('');
     setPhone('');
+    setDailyWage(400);
+    setWorkerNotes('');
+    setAddWorkerModal(true);
+  };
+
+  const handleOpenEditWorker = (worker: Worker) => {
+    setEditingWorker(worker);
+    setName(worker.name);
+    setPhone(worker.phone || '');
+    setDailyWage(worker.daily_wage || 400);
+    setWorkerNotes(worker.notes || '');
+    setAddWorkerModal(true);
+  };
+
+  const handleDeleteWorker = async (workerId: string) => {
+    if (window.confirm(t('common.confirm_delete') || 'तुम्हाला खात्री आहे का या मजुराची सर्व माहिती व हजेरी हटवायची?')) {
+      await FarmDB.deleteWorker(workerId);
+      await loadWorkersData();
+    }
+  };
+
+  const handleDeleteAdvance = async (advanceId: string) => {
+    if (window.confirm('ही उचल नोंद हटवायची आहे का?')) {
+      await FarmDB.deleteAdvance(advanceId);
+      await loadWorkersData();
+    }
+  };
+
+  const handleSaveWorker = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (editingWorker) {
+      await FarmDB.updateWorker(editingWorker.id, {
+        name,
+        phone,
+        daily_wage: Number(dailyWage),
+        notes: workerNotes,
+      });
+    } else {
+      await FarmDB.addWorker({
+        name,
+        phone,
+        daily_wage: Number(dailyWage),
+        join_date: new Date().toISOString().split('T')[0],
+        is_active: true,
+        notes: workerNotes,
+      });
+    }
+    setAddWorkerModal(false);
+    setEditingWorker(null);
+    setName('');
+    setPhone('');
+    setWorkerNotes('');
     await loadWorkersData();
   };
 
@@ -181,7 +227,7 @@ export const WorkersPage: React.FC = () => {
           </button>
 
           <button
-            onClick={() => setAddWorkerModal(true)}
+            onClick={handleOpenAddWorker}
             className="inline-flex items-center space-x-1.5 px-3.5 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold shadow-sm transition-colors"
           >
             <Plus className="w-4 h-4" />
@@ -422,14 +468,32 @@ export const WorkersPage: React.FC = () => {
                   </div>
                 </div>
 
-                <button
-                  onClick={() => handleOpenPayout(w)}
-                  disabled={(w.net_payable || 0) <= 0}
-                  className="px-4 py-2.5 bg-emerald-700 hover:bg-emerald-800 disabled:bg-slate-200 disabled:text-slate-500 text-white text-xs font-bold rounded-xl transition-all flex items-center justify-center space-x-1 shadow-sm shrink-0"
-                >
-                  <span>मजुरी वाटप करा</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </button>
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={() => handleOpenPayout(w)}
+                    disabled={(w.net_payable || 0) <= 0}
+                    className="px-4 py-2.5 bg-emerald-700 hover:bg-emerald-800 disabled:bg-slate-200 disabled:text-slate-500 text-white text-xs font-bold rounded-xl transition-all flex items-center justify-center space-x-1 shadow-sm shrink-0"
+                  >
+                    <span>मजुरी वाटप करा</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleOpenEditWorker(w)}
+                    className="p-2 text-slate-500 hover:text-emerald-700 hover:bg-emerald-50 rounded-xl transition-colors border border-slate-200"
+                    title={t('common.edit') || 'संपादित करा'}
+                  >
+                    <Edit2 className="w-4 h-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteWorker(w.id)}
+                    className="p-2 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors border border-slate-200"
+                    title={t('common.delete') || 'हटवा'}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
             ))}
           </div>
@@ -465,9 +529,19 @@ export const WorkersPage: React.FC = () => {
                       {new Date(adv.date).toLocaleDateString('mr-IN')} • {adv.reason || 'उचल'}
                     </span>
                   </div>
-                  <span className="text-base font-extrabold text-amber-700">
-                    ₹{adv.amount.toLocaleString('en-IN')}
-                  </span>
+                  <div className="flex items-center space-x-2">
+                    <span className="text-base font-extrabold text-amber-700">
+                      ₹{adv.amount.toLocaleString('en-IN')}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteAdvance(adv.id)}
+                      className="p-1 text-slate-400 hover:text-rose-600 rounded-lg transition-colors"
+                      title={t('common.delete') || 'हटवा'}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               );
             })}
@@ -480,13 +554,15 @@ export const WorkersPage: React.FC = () => {
         <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
           <div className="bg-white rounded-3xl max-w-md w-full shadow-2xl border border-slate-200 overflow-hidden">
             <div className="px-6 py-4 bg-emerald-800 text-white flex items-center justify-between">
-              <h3 className="font-bold text-base">{t('workers.add_worker')}</h3>
+              <h3 className="font-bold text-base">
+                {editingWorker ? 'मजूर माहिती संपादित करा (Edit Worker)' : t('workers.add_worker')}
+              </h3>
               <button onClick={() => setAddWorkerModal(false)} className="p-1 rounded-full hover:bg-white/10">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleAddWorker} className="p-5 space-y-4 text-xs sm:text-sm">
+            <form onSubmit={handleSaveWorker} className="p-5 space-y-4 text-xs sm:text-sm">
               <div>
                 <label className="block font-bold text-slate-800 mb-1">{t('workers.worker_name')}:</label>
                 <input
@@ -544,7 +620,7 @@ export const WorkersPage: React.FC = () => {
                   type="submit"
                   className="px-5 py-2 bg-emerald-700 text-white rounded-xl font-bold shadow-md hover:bg-emerald-800"
                 >
-                  मजूर जतन करा
+                  {editingWorker ? 'बदल जतन करा (Save Changes)' : 'मजूर जतन करा'}
                 </button>
               </div>
             </form>

@@ -12,9 +12,12 @@ import {
   LogIn, 
   UserPlus, 
   LogOut,
-  AlertTriangle
+  AlertTriangle,
+  Trash2,
+  RotateCcw,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { FarmDB } from '../services/db';
 import { saveSupabaseCredentials, clearSupabaseCredentials, getActiveSupabaseConfig } from '../lib/supabase';
 
 interface DatabaseModalProps {
@@ -63,6 +66,22 @@ export const DatabaseModal: React.FC<DatabaseModalProps> = ({ isOpen, onClose })
     setTimeout(() => {
       window.location.reload();
     }, 1000);
+  };
+
+  const handleClearAllData = () => {
+    if (window.confirm('सावधान: मागील सर्व डेटा (प्लॉट, पिके, मजूर, हिशोब, सिंचन) पूर्णपणे हटवला जाईल. तुम्हाला खात्री आहे का?')) {
+      FarmDB.clearAllFarmData();
+      alert('मागील सर्व डेटा यशस्वीरित्या हटवला गेला! नवीन डेटा भरण्यासाठी पृष्ठ रीफ्रेश होत आहे.');
+      window.location.reload();
+    }
+  };
+
+  const handleResetToDefaults = () => {
+    if (window.confirm('मूळ २० एकर ऊस, गहू, कांदा नमुना शेती डेटावर रीसेट करायचे का?')) {
+      FarmDB.resetAllDataToDefaults();
+      alert('डीफॉल्ट डेटा यशस्वीरित्या रिस्टोअर झाला! पृष्ठ रीफ्रेश होत आहे.');
+      window.location.reload();
+    }
   };
 
   const handleAuthSubmit = async (e: React.FormEvent) => {
@@ -213,6 +232,38 @@ export const DatabaseModal: React.FC<DatabaseModalProps> = ({ isOpen, onClose })
                   <div>✅ सिंचन: <strong>कालवा व विहीर पंप</strong></div>
                   <div>✅ सुरक्षा: <strong>Row Level Security (RLS)</strong></div>
                   <div>✅ स्टोरेज: <strong>farm-media Bucket</strong></div>
+                </div>
+              </div>
+
+              {/* Previous Data Management Box */}
+              <div className="bg-rose-50/70 rounded-2xl p-4 border border-rose-200 space-y-3 text-xs">
+                <div>
+                  <h4 className="font-bold text-rose-900 text-sm flex items-center space-x-1.5">
+                    <Trash2 className="w-4 h-4 text-rose-700" />
+                    <span>मागील डेटा व्यवस्थापन (Previous Data Management)</span>
+                  </h4>
+                  <p className="text-slate-600 mt-1">
+                    जर तुम्हाला जुना / नमुना डेटा काढून तुमच्या स्वतःच्या शेतीचा नवीन डेटा भरायचा असेल तर खालील पर्याय वापरा:
+                  </p>
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={handleClearAllData}
+                    className="flex-1 py-2 px-3 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-bold flex items-center justify-center space-x-1.5 transition-colors shadow-sm"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>मागील सर्व डेटा हटवा (Clear All Data)</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleResetToDefaults}
+                    className="flex-1 py-2 px-3 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 rounded-xl font-semibold flex items-center justify-center space-x-1.5 transition-colors"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5 text-slate-600" />
+                    <span>नमुना डेटावर रीसेट करा</span>
+                  </button>
                 </div>
               </div>
 

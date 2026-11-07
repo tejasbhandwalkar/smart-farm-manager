@@ -11,6 +11,20 @@ export interface UserProfile {
   created_at?: string;
 }
 
+export interface Farm {
+  id: string;
+  user_id?: string;
+  name: string;
+  total_acres: number;
+  location?: string;
+  soil_types?: SoilType[];
+  irrigation_sources?: ('canal' | 'pump')[];
+  main_crops?: CropType[];
+  notes?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
 export type SoilType = 'black' | 'red' | 'alluvial' | 'loamy';
 export type PlotStatus = 'cultivated' | 'fallow' | 'preparing';
 
@@ -156,6 +170,76 @@ export interface FinanceItem {
   payment_mode: 'cash' | 'bank_upi' | 'cheque';
   receipt_url?: string;
   notes?: string;
+}
+
+export interface Expense {
+  id: string;
+  user_id?: string;
+  farm_id?: string;
+  category: string;
+  amount: number;
+  date: string;
+  crop_id?: string;
+  crop_name?: string;
+  plot_id?: string;
+  payment_mode: 'cash' | 'bank_upi' | 'cheque';
+  receipt_url?: string;
+  notes?: string;
+  created_at?: string;
+}
+
+export interface Income {
+  id: string;
+  user_id?: string;
+  farm_id?: string;
+  category: string;
+  amount: number;
+  date: string;
+  crop_id?: string;
+  crop_name?: string;
+  plot_id?: string;
+  payment_mode: 'cash' | 'bank_upi' | 'cheque';
+  notes?: string;
+  created_at?: string;
+}
+
+export type InventoryCategory = 'fertilizer' | 'seed' | 'pesticide' | 'fuel' | 'tools' | 'other';
+
+export interface InventoryItem {
+  id: string;
+  user_id?: string;
+  farm_id?: string;
+  item_name: string;
+  category: InventoryCategory;
+  quantity: number;
+  unit: string;
+  cost_per_unit: number;
+  total_value?: number;
+  min_stock_alert?: number;
+  supplier?: string;
+  storage_location?: string;
+  notes?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface FarmingActivity {
+  id: string;
+  user_id?: string;
+  farm_id?: string;
+  title: string;
+  description?: string;
+  activity_type?: string;
+  plot_id?: string;
+  plot_name?: string;
+  crop_id?: string;
+  crop_name?: string;
+  assigned_worker_ids?: string[];
+  priority: Priority;
+  status: TaskStatus;
+  due_date: string;
+  completed_at?: string;
+  created_at?: string;
 }
 
 export type MachineryCondition = 'good' | 'needs_service' | 'breakdown';

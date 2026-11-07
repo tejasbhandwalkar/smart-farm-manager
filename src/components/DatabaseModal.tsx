@@ -15,10 +15,19 @@ import {
   AlertTriangle,
   Trash2,
   RotateCcw,
+  Activity,
+  Wifi,
+  RefreshCw,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { FarmDB } from '../services/db';
-import { saveSupabaseCredentials, clearSupabaseCredentials, getActiveSupabaseConfig } from '../lib/supabase';
+import { 
+  saveSupabaseCredentials, 
+  clearSupabaseCredentials, 
+  getActiveSupabaseConfig, 
+  testSupabaseConnection, 
+  ConnectionTestResult 
+} from '../lib/supabase';
 
 interface DatabaseModalProps {
   isOpen: boolean;
@@ -34,6 +43,10 @@ export const DatabaseModal: React.FC<DatabaseModalProps> = ({ isOpen, onClose })
   const [supabaseKey, setSupabaseKey] = useState(getActiveSupabaseConfig().key);
   const [saveMessage, setSaveMessage] = useState('');
 
+  // Connection Test State
+  const [testingConnection, setTestingConnection] = useState(false);
+  const [testResult, setTestResult] = useState<ConnectionTestResult | null>(null);
+
   // Auth form states
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
   const [email, setEmail] = useState('');
@@ -44,6 +57,23 @@ export const DatabaseModal: React.FC<DatabaseModalProps> = ({ isOpen, onClose })
   const [copiedSql, setCopiedSql] = useState(false);
 
   if (!isOpen) return null;
+
+  const handleTestConnection = async () => {
+    setTestingConnection(true);
+    setTestResult(null);
+    try {
+      const res = await testSupabaseConnection();
+      setTestResult(res);
+    } catch (err: any) {
+      setTestResult({
+        ok: false,
+        message: `कनेक्शन तपासणी अयशस्वी: ${err?.message || 'अज्ञात त्रुटी'}`,
+        authenticated: false,
+      });
+    } finally {
+      setTestingConnection(false);
+    }
+  };
 
   const handleSaveCredentials = (e: React.FormEvent) => {
     e.preventDefault();
@@ -68,17 +98,17 @@ export const DatabaseModal: React.FC<DatabaseModalProps> = ({ isOpen, onClose })
     }, 1000);
   };
 
-  const handleClearAllData = () => {
-    if (window.confirm('सावधान: मागील सर्व डेटा (प्लॉट, पिके, मजूर, हिशोब, सिंचन) पूर्णपणे हटवला जाईल. तुम्हाला खात्री आहे का?')) {
-      FarmDB.clearAllFarmData();
+  const handleClearAllData = async () => {
+    if (window.confirm('सावधान: मागील सर्व डेटा (प्लॉट, पिके, मजूर, हिशोब, खर्च, उत्पन्न, इन्व्हेंटरी, सिंचन) डेटाबेस आणि लोकल साठ्यातून पूर्णपणे हटवला जाईल. तुम्हाला खात्री आहे का?')) {
+      await FarmDB.clearAllFarmData();
       alert('मागील सर्व डेटा यशस्वीरित्या हटवला गेला! नवीन डेटा भरण्यासाठी पृष्ठ रीफ्रेश होत आहे.');
       window.location.reload();
     }
   };
 
-  const handleResetToDefaults = () => {
+  const handleResetToDefaults = async () => {
     if (window.confirm('मूळ २० एकर ऊस, गहू, कांदा नमुना शेती डेटावर रीसेट करायचे का?')) {
-      FarmDB.resetAllDataToDefaults();
+      await FarmDB.resetAllDataToDefaults();
       alert('डीफॉल्ट डेटा यशस्वीरित्या रिस्टोअर झाला! पृष्ठ रीफ्रेश होत आहे.');
       window.location.reload();
     }
@@ -220,6 +250,61 @@ export const DatabaseModal: React.FC<DatabaseModalProps> = ({ isOpen, onClose })
                 </div>
               </div>
 
+              {/* Live Connection Test Button and Results */}
+              <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200 space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div>
+                    <h4 className="font-bold text-slate-900 text-sm flex items-center space-x-1.5">
+                      <Wifi className="w-4 h-4 text-emerald-600" />
+                      <span>डेटाबेस थेट जोडणी चाचणी (Live DB Connection Test)</span>
+                    </h4>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Supabase PostgreSQL सर्व्हर आणि RLS धोरणांची तात्काळ तपासणी करा.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleTestConnection}
+                    disabled={testingConnection}
+                    className="inline-flex items-center justify-center space-x-1.5 px-3.5 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs transition-all shadow-sm shrink-0 disabled:opacity-50"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${testingConnection ? 'animate-spin' : ''}`} />
+                    <span>{testingConnection ? 'तपासणी चालू...' : 'कनेक्शन तपासा'}</span>
+                  </button>
+                </div>
+
+                {testResult && (
+                  <div
+                    className={`p-3 rounded-xl border text-xs space-y-1.5 ${
+                      testResult.ok
+                        ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
+                        : 'bg-rose-50 border-rose-200 text-rose-900'
+                    }`}
+                  >
+                    <div className="flex items-center space-x-2 font-bold">
+                      {testResult.ok ? (
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                      ) : (
+                        <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+                      )}
+                      <span>{testResult.message}</span>
+                    </div>
+
+                    {testResult.details?.latencyMs && (
+                      <div className="text-[11px] text-slate-600 pl-6">
+                        ⚡ सर्व्हर प्रतिसाद वेळ (Latency): <strong>{testResult.details.latencyMs} ms</strong>
+                      </div>
+                    )}
+
+                    {testResult.userEmail && (
+                      <div className="text-[11px] text-slate-600 pl-6">
+                        👤 प्रमाणीकृत वापरकर्ता: <strong>{testResult.userEmail}</strong>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
               {/* Farm specifications summary */}
               <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200 space-y-2 text-xs">
                 <h4 className="font-bold text-slate-900 text-sm">
@@ -227,9 +312,11 @@ export const DatabaseModal: React.FC<DatabaseModalProps> = ({ isOpen, onClose })
                 </h4>
                 <div className="grid grid-cols-2 gap-2 text-slate-600 pt-1">
                   <div>✅ एकर मर्यादा: <strong>२०.०० एकर</strong></div>
-                  <div>✅ पोस्टग्रेस तक्ते: <strong>१६ तक्ते (Tables)</strong></div>
+                  <div>✅ पोस्टग्रेस तक्ते: <strong>२१ तक्ते (Tables)</strong></div>
                   <div>✅ मुख्य पिके: <strong>ऊस, गहू, कांदा</strong></div>
                   <div>✅ सिंचन: <strong>कालवा व विहीर पंप</strong></div>
+                  <div>✅ इन्व्हेंटरी: <strong>खते, बियाणे, इंधन</strong></div>
+                  <div>✅ शेती कामे: <strong>Farming Activities</strong></div>
                   <div>✅ सुरक्षा: <strong>Row Level Security (RLS)</strong></div>
                   <div>✅ स्टोरेज: <strong>farm-media Bucket</strong></div>
                 </div>
@@ -465,34 +552,20 @@ export const DatabaseModal: React.FC<DatabaseModalProps> = ({ isOpen, onClose })
               </div>
 
               <div className="bg-slate-900 text-slate-200 p-3 rounded-xl font-mono text-[11px] max-h-56 overflow-y-auto leading-relaxed border border-slate-800">
-                <pre>{`-- 1. PROFILES
-CREATE TABLE public.profiles (...);
+                <pre>{`-- 21 PostgreSQL Tables in supabase/schema.sql:
+-- 1. profiles & farms
+-- 2. plots & crops & crop_fertilizers
+-- 3. workers, worker_attendance, worker_advances, worker_payouts
+-- 4. daily_tasks & farming_activities
+-- 5. inventory (fertilizer, seeds, fuel, pesticides, tools)
+-- 6. canal_schedules & irrigation_logs
+-- 7. finances, expenses, income
+-- 8. machinery & machinery_logs
+-- 9. crop_health_records & harvest_sales
 
--- 2. DIGITAL PLOTS (Total active plot <= 20 acres)
-CREATE TABLE public.plots (...);
-
--- 3. CROPS (Sugarcane, Wheat, Onion)
-CREATE TABLE public.crops (...);
-
--- 4. FERTILIZERS
-CREATE TABLE public.crop_fertilizers (...);
-
--- 5. WORKERS (10+ workers, daily wages)
-CREATE TABLE public.workers (...);
-
--- 6. ATTENDANCE & ADVANCES & PAYOUTS
-CREATE TABLE public.worker_attendance (...);
-CREATE TABLE public.worker_advances (...);
-CREATE TABLE public.worker_payouts (...);
-
--- 7. DAILY TASKS & IRRIGATION & MACHINERY
-CREATE TABLE public.daily_tasks (...);
-CREATE TABLE public.irrigation_logs (...);
-CREATE TABLE public.finances (...);
-CREATE TABLE public.crop_health_records (...);
-CREATE TABLE public.harvest_sales (...);
-
--- ROW LEVEL SECURITY (RLS) ENABLED ON ALL TABLES!`}</pre>
+-- Row Level Security (RLS) enabled on all 21 tables!
+-- Auth Trigger automatically creates profile & default farm on signup.
+-- Storage Bucket: farm-media (Crop diagnosis & field photos)`}</pre>
               </div>
 
               <p className="text-xs text-slate-500">

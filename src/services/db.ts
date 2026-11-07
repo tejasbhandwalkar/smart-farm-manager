@@ -16,9 +16,46 @@ import {
   CropHealthRecord,
   HarvestSale,
   UserProfile,
+  Farm,
+  Expense,
+  Income,
+  InventoryItem,
+  FarmingActivity,
 } from '../types';
 
-// Default initial state for the 20-acre family farm
+// Helper to check valid UUID format for PostgreSQL UUID primary keys
+const isUUID = (str?: string): boolean => {
+  if (!str) return false;
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
+};
+
+const getAuthUser = async () => {
+  const supabase = getSupabaseClient();
+  if (!supabase) return null;
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    return user || null;
+  } catch {
+    return null;
+  }
+};
+
+// =========================================================================
+// DEFAULT INITIAL SEED DATA FOR 20-ACRE FAMILY FARM
+// =========================================================================
+const INITIAL_FARMS: Farm[] = [
+  {
+    id: 'farm-1',
+    name: 'स्मार्ट कृषी फार्म',
+    total_acres: 20.0,
+    location: 'बारामती / पुणे परिसर, महाराष्ट्र',
+    soil_types: ['black', 'alluvial', 'loamy', 'red'],
+    irrigation_sources: ['canal', 'pump'],
+    main_crops: ['sugarcane', 'wheat', 'onion'],
+    notes: '२० एकर सुपीक बागायती शेती (८ एकर ऊस, ६ एकर गहू, ४ एकर कांदा, २ एकर मशागत)',
+  },
+];
+
 const INITIAL_PLOTS: Plot[] = [
   {
     id: 'plot-1',
@@ -184,6 +221,19 @@ const INITIAL_TASKS: DailyTask[] = [
   },
 ];
 
+const INITIAL_FARMING_ACTIVITIES: FarmingActivity[] = INITIAL_TASKS.map(t => ({
+  id: t.id,
+  title: t.title,
+  description: t.description,
+  activity_type: 'field_work',
+  plot_id: t.plot_id,
+  plot_name: t.plot_name,
+  assigned_worker_ids: t.assigned_worker_ids,
+  priority: t.priority,
+  status: t.status,
+  due_date: t.due_date,
+}));
+
 const INITIAL_CANAL_SCHEDULES: CanalSchedule[] = [
   {
     id: 'canal-1',
@@ -301,6 +351,98 @@ const INITIAL_FINANCES: FinanceItem[] = [
     crop_name: 'गहू (Wheat)',
     payment_mode: 'cash',
     notes: 'लोकवन गहू प्रमाणित बियाणे खरेदी',
+  },
+];
+
+const INITIAL_EXPENSES: Expense[] = INITIAL_FINANCES.filter(f => f.type === 'expense').map(f => ({
+  id: f.id,
+  category: f.category,
+  amount: f.amount,
+  date: f.date,
+  crop_id: f.crop_id,
+  crop_name: f.crop_name,
+  plot_id: f.plot_id,
+  payment_mode: f.payment_mode,
+  notes: f.notes,
+}));
+
+const INITIAL_INCOME: Income[] = INITIAL_FINANCES.filter(f => f.type === 'income').map(f => ({
+  id: f.id,
+  category: f.category,
+  amount: f.amount,
+  date: f.date,
+  crop_id: f.crop_id,
+  crop_name: f.crop_name,
+  plot_id: f.plot_id,
+  payment_mode: f.payment_mode,
+  notes: f.notes,
+}));
+
+const INITIAL_INVENTORY: InventoryItem[] = [
+  {
+    id: 'inv-1',
+    item_name: '१९:१९:१९ विद्राव्य खत',
+    category: 'fertilizer',
+    quantity: 15,
+    unit: 'Bags',
+    cost_per_unit: 1250,
+    total_value: 18750,
+    min_stock_alert: 5,
+    supplier: 'राजाराम कृषी केंद्र',
+    storage_location: 'गोडाऊन रॅक १',
+    notes: 'ठिबक सिंचनातून देण्यासाठी विद्राव्य ग्रेड',
+  },
+  {
+    id: 'inv-2',
+    item_name: '१०:२६:२६ सुफला',
+    category: 'fertilizer',
+    quantity: 20,
+    unit: 'Bags',
+    cost_per_unit: 1470,
+    total_value: 29400,
+    min_stock_alert: 8,
+    supplier: 'इफ्को शेतकरी सेवा केंद्र',
+    storage_location: 'गोडाऊन तळमजला',
+    notes: 'कांदा आणि ऊस बेसल डोस',
+  },
+  {
+    id: 'inv-3',
+    item_name: 'लोकवन गहू बियाणे',
+    category: 'seed',
+    quantity: 6,
+    unit: 'Bags',
+    cost_per_unit: 2100,
+    total_value: 12600,
+    min_stock_alert: 2,
+    supplier: 'महाबीज अधिकृत विक्रेता',
+    storage_location: 'बियाणे पेटी',
+    notes: 'उपचारित प्रमाणित बियाणे',
+  },
+  {
+    id: 'inv-4',
+    item_name: 'मॅन्कोझेब ७५% WP बुरशीनाशक',
+    category: 'pesticide',
+    quantity: 10,
+    unit: 'Kg',
+    cost_per_unit: 420,
+    total_value: 4200,
+    min_stock_alert: 3,
+    supplier: 'किसान ॲग्रो',
+    storage_location: 'औषध कपाट',
+    notes: 'कांदा करपा प्रतिबंधक फवारणी',
+  },
+  {
+    id: 'inv-5',
+    item_name: 'ट्रॅक्टर व पंप डिझेल साठा',
+    category: 'fuel',
+    quantity: 120,
+    unit: 'Liters',
+    cost_per_unit: 92.5,
+    total_value: 11100,
+    min_stock_alert: 30,
+    supplier: 'इंडियन ऑइल पंप',
+    storage_location: 'इंधन बॅरेल शेड',
+    notes: 'विहीर पंप व ट्रॅक्टर राखीव साठा',
   },
 ];
 
@@ -460,9 +602,9 @@ export const FarmDB = {
   },
 
   async updateLanguagePreference(lang: 'mr' | 'hi' | 'en'): Promise<void> {
+    localStorage.setItem('smart_farm_lang', lang);
     const profile = await this.getProfile();
-    profile.language_preference = lang;
-    setLocal('profile', profile);
+    setLocal('profile', { ...profile, language_preference: lang });
 
     const supabase = getSupabaseClient();
     if (supabase) {
@@ -477,7 +619,77 @@ export const FarmDB = {
     }
   },
 
-  // 2. Plots Management (Strict 20-acre limit enforced!)
+  // 2. Farms Management
+  async getFarms(): Promise<Farm[]> {
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      try {
+        const { data, error } = await supabase.from('farms').select('*').order('created_at', { ascending: true });
+        if (data && !error && data.length > 0) return data as Farm[];
+      } catch (e) {
+        console.warn('Supabase getFarms failed, fallback to local', e);
+      }
+    }
+    return getLocal<Farm[]>('farms', INITIAL_FARMS);
+  },
+
+  async addFarm(farm: Omit<Farm, 'id'>): Promise<Farm> {
+    const currentFarms = await this.getFarms();
+    const newFarm: Farm = {
+      ...farm,
+      id: `farm-${Date.now()}`,
+      created_at: new Date().toISOString(),
+    };
+
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      try {
+        const user = await getAuthUser();
+        const payload: any = { ...farm, user_id: user?.id || undefined };
+        const { data, error } = await supabase.from('farms').insert([payload]).select().single();
+        if (data && !error) {
+          setLocal('farms', [...currentFarms, data as Farm]);
+          return data as Farm;
+        }
+      } catch (e) {
+        console.warn('Supabase addFarm fallback to local', e);
+      }
+    }
+
+    setLocal('farms', [...currentFarms, newFarm]);
+    return newFarm;
+  },
+
+  async updateFarm(id: string, updates: Partial<Farm>): Promise<void> {
+    const farms = await this.getFarms();
+    const updated = farms.map(f => (f.id === id ? { ...f, ...updates } : f));
+    setLocal('farms', updated);
+
+    const supabase = getSupabaseClient();
+    if (supabase && isUUID(id)) {
+      try {
+        await supabase.from('farms').update(updates).eq('id', id);
+      } catch (e) {
+        console.warn('Supabase updateFarm failed', e);
+      }
+    }
+  },
+
+  async deleteFarm(id: string): Promise<void> {
+    const farms = await this.getFarms();
+    setLocal('farms', farms.filter(f => f.id !== id));
+
+    const supabase = getSupabaseClient();
+    if (supabase && isUUID(id)) {
+      try {
+        await supabase.from('farms').delete().eq('id', id);
+      } catch (e) {
+        console.warn('Supabase deleteFarm failed', e);
+      }
+    }
+  },
+
+  // 3. Digital Plots Management (20-Acre validation)
   async getPlots(): Promise<Plot[]> {
     const supabase = getSupabaseClient();
     if (supabase) {
@@ -496,12 +708,11 @@ export const FarmDB = {
     const currentTotal = currentPlots.reduce((acc, p) => acc + Number(p.area_acres || 0), 0);
     const newTotal = currentTotal + Number(plot.area_acres || 0);
 
-    // Enforce 20-acre farm limit
     if (newTotal > this.TOTAL_FARM_ACRES) {
       const remaining = Math.max(0, this.TOTAL_FARM_ACRES - currentTotal);
       return {
         success: false,
-        error: `Total active plot area cannot exceed ${this.TOTAL_FARM_ACRES} acres! Only ${remaining.toFixed(2)} acres remaining.`,
+        error: `एकूण शेती मर्यादा २० एकर आहे! सध्या फक्त ${remaining.toFixed(2)} एकर जागा शिल्लक आहे. (Total limit 20 acres, only ${remaining.toFixed(2)} acres available)`,
       };
     }
 
@@ -514,11 +725,9 @@ export const FarmDB = {
     const supabase = getSupabaseClient();
     if (supabase) {
       try {
-        const { data: { user } } = await supabase.auth.getUser();
-        const { data, error } = await supabase.from('plots').insert([{
-          ...plot,
-          user_id: user?.id,
-        }]).select().single();
+        const user = await getAuthUser();
+        const payload: any = { ...plot, user_id: user?.id || undefined };
+        const { data, error } = await supabase.from('plots').insert([payload]).select().single();
         if (data && !error) {
           setLocal('plots', [...currentPlots, data as Plot]);
           return { success: true, plot: data as Plot };
@@ -556,7 +765,7 @@ export const FarmDB = {
     setLocal('plots', updated);
 
     const supabase = getSupabaseClient();
-    if (supabase) {
+    if (supabase && isUUID(id)) {
       try {
         await supabase.from('plots').update(updates).eq('id', id);
       } catch (e) {
@@ -569,11 +778,10 @@ export const FarmDB = {
 
   async deletePlot(id: string): Promise<void> {
     const currentPlots = await this.getPlots();
-    const updated = currentPlots.filter(p => p.id !== id);
-    setLocal('plots', updated);
+    setLocal('plots', currentPlots.filter(p => p.id !== id));
 
     const supabase = getSupabaseClient();
-    if (supabase) {
+    if (supabase && isUUID(id)) {
       try {
         await supabase.from('plots').delete().eq('id', id);
       } catch (e) {
@@ -582,7 +790,7 @@ export const FarmDB = {
     }
   },
 
-  // 3. Crops Management
+  // 4. Crops Management (Sugarcane, Wheat, Onion)
   async getCrops(): Promise<Crop[]> {
     const supabase = getSupabaseClient();
     if (supabase) {
@@ -607,8 +815,10 @@ export const FarmDB = {
     const supabase = getSupabaseClient();
     if (supabase) {
       try {
-        const { data: { user } } = await supabase.auth.getUser();
-        const { data, error } = await supabase.from('crops').insert([{ ...crop, user_id: user?.id }]).select().single();
+        const user = await getAuthUser();
+        const payload: any = { ...crop, user_id: user?.id || undefined };
+        if (!isUUID(payload.plot_id)) delete payload.plot_id; // prevent invalid uuid syntax
+        const { data, error } = await supabase.from('crops').insert([payload]).select().single();
         if (data && !error) {
           setLocal('crops', [data as Crop, ...crops]);
           return data as Crop;
@@ -628,9 +838,11 @@ export const FarmDB = {
     setLocal('crops', updated);
 
     const supabase = getSupabaseClient();
-    if (supabase) {
+    if (supabase && isUUID(id)) {
       try {
-        await supabase.from('crops').update(updates).eq('id', id);
+        const payload: any = { ...updates };
+        if (payload.plot_id && !isUUID(payload.plot_id)) delete payload.plot_id;
+        await supabase.from('crops').update(payload).eq('id', id);
       } catch (e) {
         console.warn('Supabase updateCrop failed', e);
       }
@@ -642,7 +854,7 @@ export const FarmDB = {
     setLocal('crops', crops.filter(c => c.id !== id));
 
     const supabase = getSupabaseClient();
-    if (supabase) {
+    if (supabase && isUUID(id)) {
       try {
         await supabase.from('crops').delete().eq('id', id);
       } catch (e) {
@@ -651,9 +863,22 @@ export const FarmDB = {
     }
   },
 
-  // 4. Workers, Attendance & Wages
+  // 5. Workers, Attendance & Wages
   async getWorkers(): Promise<Worker[]> {
-    const workers = getLocal<Worker[]>('workers', INITIAL_WORKERS);
+    let workers = getLocal<Worker[]>('workers', INITIAL_WORKERS);
+
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      try {
+        const { data, error } = await supabase.from('workers').select('*').order('created_at', { ascending: true });
+        if (data && !error && data.length > 0) {
+          workers = data as Worker[];
+        }
+      } catch (e) {
+        console.warn('Supabase getWorkers fallback', e);
+      }
+    }
+
     const attendance = await this.getAttendance();
     const advances = await this.getAdvances();
     const payouts = await this.getPayouts();
@@ -667,7 +892,6 @@ export const FarmDB = {
         else if (a.status === 'half_day') daysWorked += 0.5;
       });
 
-      // Default to 15 days if new or not fully marked
       if (daysWorked === 0 && w.is_active) daysWorked = 12;
 
       const totalEarned = daysWorked * (Number(w.daily_wage) || 400);
@@ -692,6 +916,22 @@ export const FarmDB = {
       ...worker,
       id: `w-${Date.now()}`,
     };
+
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      try {
+        const user = await getAuthUser();
+        const payload: any = { ...worker, user_id: user?.id || undefined };
+        const { data, error } = await supabase.from('workers').insert([payload]).select().single();
+        if (data && !error) {
+          setLocal('workers', [...current, data as Worker]);
+          return data as Worker;
+        }
+      } catch (e) {
+        console.warn('Supabase addWorker fallback', e);
+      }
+    }
+
     setLocal('workers', [...current, newWorker]);
     return newWorker;
   },
@@ -700,24 +940,51 @@ export const FarmDB = {
     const workers = getLocal<Worker[]>('workers', INITIAL_WORKERS);
     const updated = workers.map(w => (w.id === id ? { ...w, ...updates } : w));
     setLocal('workers', updated);
+
+    const supabase = getSupabaseClient();
+    if (supabase && isUUID(id)) {
+      try {
+        await supabase.from('workers').update(updates).eq('id', id);
+      } catch (e) {
+        console.warn('Supabase updateWorker failed', e);
+      }
+    }
   },
 
   async deleteWorker(id: string): Promise<void> {
     const workers = getLocal<Worker[]>('workers', INITIAL_WORKERS);
     setLocal('workers', workers.filter(w => w.id !== id));
-    // Also clean up attendance and advances
+
     const attendance = getLocal<WorkerAttendance[]>('attendance', INITIAL_ATTENDANCE);
     setLocal('attendance', attendance.filter(a => a.worker_id !== id));
     const advances = getLocal<WorkerAdvance[]>('advances', INITIAL_ADVANCES);
     setLocal('advances', advances.filter(a => a.worker_id !== id));
+
+    const supabase = getSupabaseClient();
+    if (supabase && isUUID(id)) {
+      try {
+        await supabase.from('workers').delete().eq('id', id);
+      } catch (e) {
+        console.warn('Supabase deleteWorker failed', e);
+      }
+    }
   },
 
   async getAttendance(date?: string): Promise<WorkerAttendance[]> {
-    const all = getLocal<WorkerAttendance[]>('attendance', INITIAL_ATTENDANCE);
-    if (date) {
-      return all.filter(a => a.date === date);
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      try {
+        let query = supabase.from('worker_attendance').select('*');
+        if (date) query = query.eq('date', date);
+        const { data, error } = await query;
+        if (data && !error && data.length > 0) return data as WorkerAttendance[];
+      } catch (e) {
+        console.warn('Supabase getAttendance fallback', e);
+      }
     }
-    return all;
+
+    const all = getLocal<WorkerAttendance[]>('attendance', INITIAL_ATTENDANCE);
+    return date ? all.filter(a => a.date === date) : all;
   },
 
   async markAttendance(workerId: string, date: string, status: 'present' | 'absent' | 'half_day', notes = ''): Promise<void> {
@@ -736,9 +1003,34 @@ export const FarmDB = {
       });
     }
     setLocal('attendance', all);
+
+    const supabase = getSupabaseClient();
+    if (supabase && isUUID(workerId)) {
+      try {
+        const user = await getAuthUser();
+        await supabase.from('worker_attendance').upsert({
+          worker_id: workerId,
+          date,
+          status,
+          notes,
+          user_id: user?.id || undefined,
+        }, { onConflict: 'worker_id,date' });
+      } catch (e) {
+        console.warn('Supabase markAttendance failed', e);
+      }
+    }
   },
 
   async getAdvances(): Promise<WorkerAdvance[]> {
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      try {
+        const { data, error } = await supabase.from('worker_advances').select('*').order('date', { ascending: false });
+        if (data && !error && data.length > 0) return data as WorkerAdvance[];
+      } catch (e) {
+        console.warn('Supabase getAdvances fallback', e);
+      }
+    }
     return getLocal<WorkerAdvance[]>('advances', INITIAL_ADVANCES);
   },
 
@@ -748,6 +1040,23 @@ export const FarmDB = {
       ...advance,
       id: `adv-${Date.now()}`,
     };
+
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      try {
+        const user = await getAuthUser();
+        const payload: any = { ...advance, user_id: user?.id || undefined };
+        if (!isUUID(payload.worker_id)) delete payload.worker_id;
+        const { data, error } = await supabase.from('worker_advances').insert([payload]).select().single();
+        if (data && !error) {
+          setLocal('advances', [data as WorkerAdvance, ...all]);
+          return data as WorkerAdvance;
+        }
+      } catch (e) {
+        console.warn('Supabase addAdvance fallback', e);
+      }
+    }
+
     setLocal('advances', [newAdv, ...all]);
     return newAdv;
   },
@@ -755,9 +1064,27 @@ export const FarmDB = {
   async deleteAdvance(id: string): Promise<void> {
     const all = await this.getAdvances();
     setLocal('advances', all.filter(a => a.id !== id));
+
+    const supabase = getSupabaseClient();
+    if (supabase && isUUID(id)) {
+      try {
+        await supabase.from('worker_advances').delete().eq('id', id);
+      } catch (e) {
+        console.warn('Supabase deleteAdvance failed', e);
+      }
+    }
   },
 
   async getPayouts(): Promise<WorkerPayout[]> {
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      try {
+        const { data, error } = await supabase.from('worker_payouts').select('*').order('date', { ascending: false });
+        if (data && !error && data.length > 0) return data as WorkerPayout[];
+      } catch (e) {
+        console.warn('Supabase getPayouts fallback', e);
+      }
+    }
     return getLocal<WorkerPayout[]>('payouts', []);
   },
 
@@ -767,9 +1094,25 @@ export const FarmDB = {
       ...payout,
       id: `pay-${Date.now()}`,
     };
+
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      try {
+        const user = await getAuthUser();
+        const payload: any = { ...payout, user_id: user?.id || undefined };
+        if (!isUUID(payload.worker_id)) delete payload.worker_id;
+        const { data, error } = await supabase.from('worker_payouts').insert([payload]).select().single();
+        if (data && !error) {
+          setLocal('payouts', [data as WorkerPayout, ...all]);
+        }
+      } catch (e) {
+        console.warn('Supabase recordPayout fallback', e);
+      }
+    }
+
     setLocal('payouts', [newPayout, ...all]);
 
-    // Also automatically log to farm finances as Labour Expense!
+    // Automatically log to farm finances as Labour Expense
     const worker = (await this.getWorkers()).find(w => w.id === payout.worker_id);
     await this.addFinanceItem({
       type: 'expense',
@@ -783,8 +1126,17 @@ export const FarmDB = {
     return newPayout;
   },
 
-  // 5. Daily Tasks
+  // 6. Daily Tasks & Farming Activities
   async getTasks(): Promise<DailyTask[]> {
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      try {
+        const { data, error } = await supabase.from('daily_tasks').select('*').order('due_date', { ascending: true });
+        if (data && !error && data.length > 0) return data as DailyTask[];
+      } catch (e) {
+        console.warn('Supabase getTasks fallback', e);
+      }
+    }
     return getLocal<DailyTask[]>('tasks', INITIAL_TASKS);
   },
 
@@ -795,6 +1147,23 @@ export const FarmDB = {
       id: `task-${Date.now()}`,
       created_at: new Date().toISOString(),
     };
+
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      try {
+        const user = await getAuthUser();
+        const payload: any = { ...task, user_id: user?.id || undefined };
+        if (!isUUID(payload.plot_id)) delete payload.plot_id;
+        const { data, error } = await supabase.from('daily_tasks').insert([payload]).select().single();
+        if (data && !error) {
+          setLocal('tasks', [data as DailyTask, ...all]);
+          return data as DailyTask;
+        }
+      } catch (e) {
+        console.warn('Supabase addTask fallback', e);
+      }
+    }
+
     setLocal('tasks', [newTask, ...all]);
     return newTask;
   },
@@ -803,15 +1172,162 @@ export const FarmDB = {
     const all = await this.getTasks();
     const updated = all.map(t => (t.id === id ? { ...t, ...updates } : t));
     setLocal('tasks', updated);
+
+    const supabase = getSupabaseClient();
+    if (supabase && isUUID(id)) {
+      try {
+        const payload: any = { ...updates };
+        if (payload.plot_id && !isUUID(payload.plot_id)) delete payload.plot_id;
+        await supabase.from('daily_tasks').update(payload).eq('id', id);
+      } catch (e) {
+        console.warn('Supabase updateTask failed', e);
+      }
+    }
   },
 
   async deleteTask(id: string): Promise<void> {
     const all = await this.getTasks();
     setLocal('tasks', all.filter(t => t.id !== id));
+
+    const supabase = getSupabaseClient();
+    if (supabase && isUUID(id)) {
+      try {
+        await supabase.from('daily_tasks').delete().eq('id', id);
+      } catch (e) {
+        console.warn('Supabase deleteTask failed', e);
+      }
+    }
   },
 
-  // 6. Irrigation & Canal
+  async getFarmingActivities(): Promise<FarmingActivity[]> {
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      try {
+        const { data, error } = await supabase.from('farming_activities').select('*').order('due_date', { ascending: true });
+        if (data && !error && data.length > 0) return data as FarmingActivity[];
+      } catch (e) {
+        console.warn('Supabase getFarmingActivities fallback', e);
+      }
+    }
+    return getLocal<FarmingActivity[]>('farming_activities', INITIAL_FARMING_ACTIVITIES);
+  },
+
+  async addFarmingActivity(act: Omit<FarmingActivity, 'id'>): Promise<FarmingActivity> {
+    const all = await this.getFarmingActivities();
+    const newAct: FarmingActivity = {
+      ...act,
+      id: `act-${Date.now()}`,
+      created_at: new Date().toISOString(),
+    };
+
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      try {
+        const user = await getAuthUser();
+        const payload: any = { ...act, user_id: user?.id || undefined };
+        if (!isUUID(payload.plot_id)) delete payload.plot_id;
+        if (!isUUID(payload.crop_id)) delete payload.crop_id;
+        const { data, error } = await supabase.from('farming_activities').insert([payload]).select().single();
+        if (data && !error) {
+          setLocal('farming_activities', [data as FarmingActivity, ...all]);
+          return data as FarmingActivity;
+        }
+      } catch (e) {
+        console.warn('Supabase addFarmingActivity fallback', e);
+      }
+    }
+
+    setLocal('farming_activities', [newAct, ...all]);
+    return newAct;
+  },
+
+  // 7. Inventory Management (Fertilizer, Seed, Fuel, Pesticides, Tools)
+  async getInventory(): Promise<InventoryItem[]> {
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      try {
+        const { data, error } = await supabase.from('inventory').select('*').order('created_at', { ascending: false });
+        if (data && !error && data.length > 0) return data as InventoryItem[];
+      } catch (e) {
+        console.warn('Supabase getInventory fallback', e);
+      }
+    }
+    return getLocal<InventoryItem[]>('inventory', INITIAL_INVENTORY);
+  },
+
+  async addInventoryItem(item: Omit<InventoryItem, 'id'>): Promise<InventoryItem> {
+    const all = await this.getInventory();
+    const newItem: InventoryItem = {
+      ...item,
+      id: `inv-${Date.now()}`,
+      total_value: Number(item.quantity || 0) * Number(item.cost_per_unit || 0),
+      created_at: new Date().toISOString(),
+    };
+
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      try {
+        const user = await getAuthUser();
+        const payload: any = { ...item, user_id: user?.id || undefined };
+        const { data, error } = await supabase.from('inventory').insert([payload]).select().single();
+        if (data && !error) {
+          setLocal('inventory', [data as InventoryItem, ...all]);
+          return data as InventoryItem;
+        }
+      } catch (e) {
+        console.warn('Supabase addInventoryItem fallback', e);
+      }
+    }
+
+    setLocal('inventory', [newItem, ...all]);
+    return newItem;
+  },
+
+  async updateInventoryItem(id: string, updates: Partial<InventoryItem>): Promise<void> {
+    const all = await this.getInventory();
+    const updated = all.map(i => {
+      if (i.id !== id) return i;
+      const merged = { ...i, ...updates };
+      merged.total_value = Number(merged.quantity || 0) * Number(merged.cost_per_unit || 0);
+      return merged;
+    });
+    setLocal('inventory', updated);
+
+    const supabase = getSupabaseClient();
+    if (supabase && isUUID(id)) {
+      try {
+        await supabase.from('inventory').update(updates).eq('id', id);
+      } catch (e) {
+        console.warn('Supabase updateInventoryItem failed', e);
+      }
+    }
+  },
+
+  async deleteInventoryItem(id: string): Promise<void> {
+    const all = await this.getInventory();
+    setLocal('inventory', all.filter(i => i.id !== id));
+
+    const supabase = getSupabaseClient();
+    if (supabase && isUUID(id)) {
+      try {
+        await supabase.from('inventory').delete().eq('id', id);
+      } catch (e) {
+        console.warn('Supabase deleteInventoryItem failed', e);
+      }
+    }
+  },
+
+  // 8. Irrigation & Canal
   async getCanalSchedules(): Promise<CanalSchedule[]> {
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      try {
+        const { data, error } = await supabase.from('canal_schedules').select('*').order('expected_date', { ascending: true });
+        if (data && !error && data.length > 0) return data as CanalSchedule[];
+      } catch (e) {
+        console.warn('Supabase getCanalSchedules fallback', e);
+      }
+    }
     return getLocal<CanalSchedule[]>('canal_schedules', INITIAL_CANAL_SCHEDULES);
   },
 
@@ -821,6 +1337,22 @@ export const FarmDB = {
       ...schedule,
       id: `canal-${Date.now()}`,
     };
+
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      try {
+        const user = await getAuthUser();
+        const payload: any = { ...schedule, user_id: user?.id || undefined };
+        const { data, error } = await supabase.from('canal_schedules').insert([payload]).select().single();
+        if (data && !error) {
+          setLocal('canal_schedules', [data as CanalSchedule, ...all]);
+          return data as CanalSchedule;
+        }
+      } catch (e) {
+        console.warn('Supabase addCanalSchedule fallback', e);
+      }
+    }
+
     setLocal('canal_schedules', [newSchedule, ...all]);
     return newSchedule;
   },
@@ -828,9 +1360,27 @@ export const FarmDB = {
   async deleteCanalSchedule(id: string): Promise<void> {
     const all = await this.getCanalSchedules();
     setLocal('canal_schedules', all.filter(c => c.id !== id));
+
+    const supabase = getSupabaseClient();
+    if (supabase && isUUID(id)) {
+      try {
+        await supabase.from('canal_schedules').delete().eq('id', id);
+      } catch (e) {
+        console.warn('Supabase deleteCanalSchedule failed', e);
+      }
+    }
   },
 
   async getIrrigationLogs(): Promise<IrrigationLog[]> {
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      try {
+        const { data, error } = await supabase.from('irrigation_logs').select('*').order('date', { ascending: false });
+        if (data && !error && data.length > 0) return data as IrrigationLog[];
+      } catch (e) {
+        console.warn('Supabase getIrrigationLogs fallback', e);
+      }
+    }
     return getLocal<IrrigationLog[]>('irrigation_logs', INITIAL_IRRIGATION_LOGS);
   },
 
@@ -840,9 +1390,25 @@ export const FarmDB = {
       ...log,
       id: `irr-${Date.now()}`,
     };
+
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      try {
+        const user = await getAuthUser();
+        const payload: any = { ...log, user_id: user?.id || undefined };
+        if (!isUUID(payload.plot_id)) delete payload.plot_id;
+        const { data, error } = await supabase.from('irrigation_logs').insert([payload]).select().single();
+        if (data && !error) {
+          setLocal('irrigation_logs', [data as IrrigationLog, ...all]);
+        }
+      } catch (e) {
+        console.warn('Supabase addIrrigationLog fallback', e);
+      }
+    }
+
     setLocal('irrigation_logs', [newLog, ...all]);
 
-    // If diesel cost incurred, add to finances automatically!
+    // If diesel cost incurred, add to finances automatically
     if (log.fuel_cost && log.fuel_cost > 0) {
       await this.addFinanceItem({
         type: 'expense',
@@ -861,10 +1427,28 @@ export const FarmDB = {
   async deleteIrrigationLog(id: string): Promise<void> {
     const all = await this.getIrrigationLogs();
     setLocal('irrigation_logs', all.filter(l => l.id !== id));
+
+    const supabase = getSupabaseClient();
+    if (supabase && isUUID(id)) {
+      try {
+        await supabase.from('irrigation_logs').delete().eq('id', id);
+      } catch (e) {
+        console.warn('Supabase deleteIrrigationLog failed', e);
+      }
+    }
   },
 
-  // 7. Finance Management
+  // 9. Finance Management (Income & Expenses)
   async getFinances(): Promise<FinanceItem[]> {
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      try {
+        const { data, error } = await supabase.from('finances').select('*').order('date', { ascending: false });
+        if (data && !error && data.length > 0) return data as FinanceItem[];
+      } catch (e) {
+        console.warn('Supabase getFinances fallback', e);
+      }
+    }
     return getLocal<FinanceItem[]>('finances', INITIAL_FINANCES);
   },
 
@@ -874,6 +1458,31 @@ export const FarmDB = {
       ...item,
       id: `fin-${Date.now()}`,
     };
+
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      try {
+        const user = await getAuthUser();
+        const payload: any = { ...item, user_id: user?.id || undefined };
+        if (!isUUID(payload.crop_id)) delete payload.crop_id;
+        if (!isUUID(payload.plot_id)) delete payload.plot_id;
+
+        const { data, error } = await supabase.from('finances').insert([payload]).select().single();
+        if (data && !error) {
+          // Also sync to specialized expenses / income tables
+          if (item.type === 'expense') {
+            await supabase.from('expenses').insert([{ ...payload }]);
+          } else {
+            await supabase.from('income').insert([{ ...payload }]);
+          }
+          setLocal('finances', [data as FinanceItem, ...all]);
+          return data as FinanceItem;
+        }
+      } catch (e) {
+        console.warn('Supabase addFinanceItem fallback', e);
+      }
+    }
+
     setLocal('finances', [newItem, ...all]);
     return newItem;
   },
@@ -881,15 +1490,91 @@ export const FarmDB = {
   async updateFinanceItem(id: string, updates: Partial<FinanceItem>): Promise<void> {
     const all = await this.getFinances();
     setLocal('finances', all.map(f => (f.id === id ? { ...f, ...updates } : f)));
+
+    const supabase = getSupabaseClient();
+    if (supabase && isUUID(id)) {
+      try {
+        const payload: any = { ...updates };
+        if (payload.crop_id && !isUUID(payload.crop_id)) delete payload.crop_id;
+        if (payload.plot_id && !isUUID(payload.plot_id)) delete payload.plot_id;
+        await supabase.from('finances').update(payload).eq('id', id);
+      } catch (e) {
+        console.warn('Supabase updateFinanceItem failed', e);
+      }
+    }
   },
 
   async deleteFinanceItem(id: string): Promise<void> {
     const all = await this.getFinances();
     setLocal('finances', all.filter(f => f.id !== id));
+
+    const supabase = getSupabaseClient();
+    if (supabase && isUUID(id)) {
+      try {
+        await supabase.from('finances').delete().eq('id', id);
+      } catch (e) {
+        console.warn('Supabase deleteFinanceItem failed', e);
+      }
+    }
   },
 
-  // 8. Machinery
+  // Specialized Expenses & Income CRUD
+  async getExpenses(): Promise<Expense[]> {
+    const all = await this.getFinances();
+    return all.filter(f => f.type === 'expense').map(f => ({
+      id: f.id,
+      category: f.category,
+      amount: f.amount,
+      date: f.date,
+      crop_id: f.crop_id,
+      crop_name: f.crop_name,
+      plot_id: f.plot_id,
+      payment_mode: f.payment_mode,
+      receipt_url: f.receipt_url,
+      notes: f.notes,
+    }));
+  },
+
+  async addExpense(expense: Omit<Expense, 'id'>): Promise<FinanceItem> {
+    return this.addFinanceItem({
+      ...expense,
+      type: 'expense',
+    });
+  },
+
+  async getIncome(): Promise<Income[]> {
+    const all = await this.getFinances();
+    return all.filter(f => f.type === 'income').map(f => ({
+      id: f.id,
+      category: f.category,
+      amount: f.amount,
+      date: f.date,
+      crop_id: f.crop_id,
+      crop_name: f.crop_name,
+      plot_id: f.plot_id,
+      payment_mode: f.payment_mode,
+      notes: f.notes,
+    }));
+  },
+
+  async addIncome(income: Omit<Income, 'id'>): Promise<FinanceItem> {
+    return this.addFinanceItem({
+      ...income,
+      type: 'income',
+    });
+  },
+
+  // 10. Machinery
   async getMachinery(): Promise<MachineryItem[]> {
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      try {
+        const { data, error } = await supabase.from('machinery').select('*').order('created_at', { ascending: true });
+        if (data && !error && data.length > 0) return data as MachineryItem[];
+      } catch (e) {
+        console.warn('Supabase getMachinery fallback', e);
+      }
+    }
     return getLocal<MachineryItem[]>('machinery', INITIAL_MACHINERY);
   },
 
@@ -899,6 +1584,22 @@ export const FarmDB = {
       ...item,
       id: `mac-${Date.now()}`,
     };
+
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      try {
+        const user = await getAuthUser();
+        const payload: any = { ...item, user_id: user?.id || undefined };
+        const { data, error } = await supabase.from('machinery').insert([payload]).select().single();
+        if (data && !error) {
+          setLocal('machinery', [...all, data as MachineryItem]);
+          return data as MachineryItem;
+        }
+      } catch (e) {
+        console.warn('Supabase addMachinery fallback', e);
+      }
+    }
+
     setLocal('machinery', [...all, newItem]);
     return newItem;
   },
@@ -906,15 +1607,42 @@ export const FarmDB = {
   async updateMachinery(id: string, updates: Partial<MachineryItem>): Promise<void> {
     const all = await this.getMachinery();
     setLocal('machinery', all.map(m => (m.id === id ? { ...m, ...updates } : m)));
+
+    const supabase = getSupabaseClient();
+    if (supabase && isUUID(id)) {
+      try {
+        await supabase.from('machinery').update(updates).eq('id', id);
+      } catch (e) {
+        console.warn('Supabase updateMachinery failed', e);
+      }
+    }
   },
 
   async deleteMachinery(id: string): Promise<void> {
     const all = await this.getMachinery();
     setLocal('machinery', all.filter(m => m.id !== id));
+
+    const supabase = getSupabaseClient();
+    if (supabase && isUUID(id)) {
+      try {
+        await supabase.from('machinery').delete().eq('id', id);
+      } catch (e) {
+        console.warn('Supabase deleteMachinery failed', e);
+      }
+    }
   },
 
-  // 9. Crop Health
+  // 11. Crop Health Records
   async getCropHealthRecords(): Promise<CropHealthRecord[]> {
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      try {
+        const { data, error } = await supabase.from('crop_health_records').select('*').order('observation_date', { ascending: false });
+        if (data && !error && data.length > 0) return data as CropHealthRecord[];
+      } catch (e) {
+        console.warn('Supabase getCropHealthRecords fallback', e);
+      }
+    }
     return getLocal<CropHealthRecord[]>('crop_health', INITIAL_CROP_HEALTH);
   },
 
@@ -924,6 +1652,24 @@ export const FarmDB = {
       ...record,
       id: `health-${Date.now()}`,
     };
+
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      try {
+        const user = await getAuthUser();
+        const payload: any = { ...record, user_id: user?.id || undefined };
+        if (!isUUID(payload.plot_id)) delete payload.plot_id;
+        if (!isUUID(payload.crop_id)) delete payload.crop_id;
+        const { data, error } = await supabase.from('crop_health_records').insert([payload]).select().single();
+        if (data && !error) {
+          setLocal('crop_health', [data as CropHealthRecord, ...all]);
+          return data as CropHealthRecord;
+        }
+      } catch (e) {
+        console.warn('Supabase addCropHealthRecord fallback', e);
+      }
+    }
+
     setLocal('crop_health', [newRecord, ...all]);
     return newRecord;
   },
@@ -931,15 +1677,45 @@ export const FarmDB = {
   async updateCropHealthRecord(id: string, updates: Partial<CropHealthRecord>): Promise<void> {
     const all = await this.getCropHealthRecords();
     setLocal('crop_health', all.map(r => (r.id === id ? { ...r, ...updates } : r)));
+
+    const supabase = getSupabaseClient();
+    if (supabase && isUUID(id)) {
+      try {
+        const payload: any = { ...updates };
+        if (payload.plot_id && !isUUID(payload.plot_id)) delete payload.plot_id;
+        if (payload.crop_id && !isUUID(payload.crop_id)) delete payload.crop_id;
+        await supabase.from('crop_health_records').update(payload).eq('id', id);
+      } catch (e) {
+        console.warn('Supabase updateCropHealthRecord failed', e);
+      }
+    }
   },
 
   async deleteCropHealthRecord(id: string): Promise<void> {
     const all = await this.getCropHealthRecords();
     setLocal('crop_health', all.filter(r => r.id !== id));
+
+    const supabase = getSupabaseClient();
+    if (supabase && isUUID(id)) {
+      try {
+        await supabase.from('crop_health_records').delete().eq('id', id);
+      } catch (e) {
+        console.warn('Supabase deleteCropHealthRecord failed', e);
+      }
+    }
   },
 
-  // 10. Harvest & Sales
+  // 12. Harvest & Sales
   async getHarvestSales(): Promise<HarvestSale[]> {
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      try {
+        const { data, error } = await supabase.from('harvest_sales').select('*').order('harvest_date', { ascending: false });
+        if (data && !error && data.length > 0) return data as HarvestSale[];
+      } catch (e) {
+        console.warn('Supabase getHarvestSales fallback', e);
+      }
+    }
     return getLocal<HarvestSale[]>('harvest_sales', INITIAL_HARVEST_SALES);
   },
 
@@ -949,9 +1725,26 @@ export const FarmDB = {
       ...sale,
       id: `sale-${Date.now()}`,
     };
+
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      try {
+        const user = await getAuthUser();
+        const payload: any = { ...sale, user_id: user?.id || undefined };
+        if (!isUUID(payload.crop_id)) delete payload.crop_id;
+        if (!isUUID(payload.plot_id)) delete payload.plot_id;
+        const { data, error } = await supabase.from('harvest_sales').insert([payload]).select().single();
+        if (data && !error) {
+          setLocal('harvest_sales', [data as HarvestSale, ...all]);
+        }
+      } catch (e) {
+        console.warn('Supabase addHarvestSale fallback', e);
+      }
+    }
+
     setLocal('harvest_sales', [newSale, ...all]);
 
-    // If money received, log as income to finances automatically!
+    // If money received, log as income to finances automatically
     if (sale.received_amount > 0) {
       await this.addFinanceItem({
         type: 'income',
@@ -975,18 +1768,63 @@ export const FarmDB = {
   async updateHarvestSale(id: string, updates: Partial<HarvestSale>): Promise<void> {
     const all = await this.getHarvestSales();
     setLocal('harvest_sales', all.map(s => (s.id === id ? { ...s, ...updates } : s)));
+
+    const supabase = getSupabaseClient();
+    if (supabase && isUUID(id)) {
+      try {
+        const payload: any = { ...updates };
+        if (payload.crop_id && !isUUID(payload.crop_id)) delete payload.crop_id;
+        if (payload.plot_id && !isUUID(payload.plot_id)) delete payload.plot_id;
+        await supabase.from('harvest_sales').update(payload).eq('id', id);
+      } catch (e) {
+        console.warn('Supabase updateHarvestSale failed', e);
+      }
+    }
   },
 
   async deleteHarvestSale(id: string): Promise<void> {
     const all = await this.getHarvestSales();
     setLocal('harvest_sales', all.filter(s => s.id !== id));
+
+    const supabase = getSupabaseClient();
+    if (supabase && isUUID(id)) {
+      try {
+        await supabase.from('harvest_sales').delete().eq('id', id);
+      } catch (e) {
+        console.warn('Supabase deleteHarvestSale failed', e);
+      }
+    }
   },
 
-  // 11. Global Reset & Clear Data
-  clearAllFarmData(): void {
+  // 13. Global Reset & Clear All Data (with confirmation safety)
+  async clearAllFarmData(): Promise<void> {
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      try {
+        const user = await getAuthUser();
+        const tables = [
+          'harvest_sales', 'crop_health_records', 'machinery_logs', 'machinery',
+          'expenses', 'income', 'finances', 'irrigation_logs', 'canal_schedules',
+          'inventory', 'farming_activities', 'daily_tasks', 'worker_payouts',
+          'worker_advances', 'worker_attendance', 'workers', 'crop_fertilizers',
+          'crops', 'plots', 'farms'
+        ];
+        for (const tbl of tables) {
+          if (user) {
+            await supabase.from(tbl).delete().eq('user_id', user.id);
+          } else {
+            await supabase.from(tbl).delete().neq('id', '00000000-0000-0000-0000-000000000000');
+          }
+        }
+      } catch (e) {
+        console.warn('Supabase clear failed', e);
+      }
+    }
+
     const collections = [
-      'plots', 'crops', 'workers', 'attendance', 'advances', 'payouts',
-      'tasks', 'canal_schedules', 'irrigation_logs', 'finances', 'machinery',
+      'farms', 'plots', 'crops', 'workers', 'attendance', 'advances', 'payouts',
+      'tasks', 'farming_activities', 'canal_schedules', 'irrigation_logs',
+      'finances', 'expenses', 'income', 'inventory', 'machinery',
       'crop_health', 'harvest_sales'
     ];
     collections.forEach(key => {
@@ -994,7 +1832,8 @@ export const FarmDB = {
     });
   },
 
-  resetAllDataToDefaults(): void {
+  async resetAllDataToDefaults(): Promise<void> {
+    setLocal('farms', INITIAL_FARMS);
     setLocal('plots', INITIAL_PLOTS);
     setLocal('crops', INITIAL_CROPS);
     setLocal('workers', INITIAL_WORKERS);
@@ -1002,9 +1841,13 @@ export const FarmDB = {
     setLocal('advances', INITIAL_ADVANCES);
     setLocal('payouts', []);
     setLocal('tasks', INITIAL_TASKS);
+    setLocal('farming_activities', INITIAL_FARMING_ACTIVITIES);
     setLocal('canal_schedules', INITIAL_CANAL_SCHEDULES);
     setLocal('irrigation_logs', INITIAL_IRRIGATION_LOGS);
     setLocal('finances', INITIAL_FINANCES);
+    setLocal('expenses', INITIAL_EXPENSES);
+    setLocal('income', INITIAL_INCOME);
+    setLocal('inventory', INITIAL_INVENTORY);
     setLocal('machinery', INITIAL_MACHINERY);
     setLocal('crop_health', INITIAL_CROP_HEALTH);
     setLocal('harvest_sales', INITIAL_HARVEST_SALES);

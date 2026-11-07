@@ -14,6 +14,7 @@ import { TasksPage } from './pages/TasksPage';
 import { IrrigationPage } from './pages/IrrigationPage';
 import { FinancePage } from './pages/FinancePage';
 import { MachineryPage } from './pages/MachineryPage';
+import { InventoryPage } from './pages/InventoryPage';
 import { CropHealthPage } from './pages/CropHealthPage';
 import { HarvestSalesPage } from './pages/HarvestSalesPage';
 import { WeatherPage } from './pages/WeatherPage';
@@ -55,6 +56,7 @@ export function App() {
                 <Route path="/irrigation" element={<IrrigationPage />} />
                 <Route path="/finance" element={<FinancePage />} />
                 <Route path="/machinery" element={<MachineryPage />} />
+                <Route path="/inventory" element={<InventoryPage />} />
                 <Route path="/crop-health" element={<CropHealthPage />} />
                 <Route path="/harvest-sales" element={<HarvestSalesPage />} />
                 <Route path="/weather" element={<WeatherPage />} />
